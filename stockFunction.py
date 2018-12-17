@@ -544,7 +544,7 @@ class MSSQL:
     #      queue_1.put(stocks[i])
     # data1=ts.get_realtime_quotes(dL[0:880])
     # df=self.pro.suspend(ts_code=dL[0:880])    
-    print(dt)
+    print('dt')
     return 
      
 def main(): 
