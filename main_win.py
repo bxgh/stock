@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import wx
-import basewin
+import basewin,datasetwin,dirsetWin
 import baseFunction
 import stockFunction
 import kdayCalcData
 import fenbiFunction
-
 import numpy as np
 import time
 from datetime import datetime,date
@@ -15,6 +14,7 @@ import pandas as pd
 import threading
 import rarfile
 import os 
+import configparser
 
 class customStatusBar(wx.StatusBar):#设置底部状态栏、进度条
     def __init__(self, parent):        
@@ -30,12 +30,16 @@ class customStatusBar(wx.StatusBar):#设置底部状态栏、进度条
              
 
 class MianWindow(basewin.baseMainWindow):
-    def init_main_window(self): 
-      self.count=100 
-
+    def init_main_window(self):        
+    #   global conf  #声明config文件全局变量
+      #设置状态栏      
+      self.count=100       
       self.status = customStatusBar(self)
       self.statusBar=self.SetStatusBar(self.status)  
-      self.localFenbi = fenbiFunction.FenBi(host="127.0.0.1\MSSERVER2008", user="sa", pwd="123", db="fenbi",myOrms="mssql") 
+      #配置数据库连接      
+    #   host_fenbi=conf.get('database','host_fenbi')
+    #   print(host_fenbi)
+      self.localFenbi = fenbiFunction.FenBi() 
          
       self.mskday = stockFunction.MSSQL(host="192.168.151.213", user="toshare1", pwd="toshare1", db="kday_qfq",myOrms="mysql")   
     #   self.kdayCal = kdayCalcData.CALCDATA(host="192.168.151.213", user="toshare1", pwd="toshare1", db="kday_qfq",myOrms="mysql") 
@@ -50,8 +54,12 @@ class MianWindow(basewin.baseMainWindow):
 
     def getFbTxtDir( self, event ):
     #   getDir=self.m_dirPicker9.GetPath() 
-      self.localFenbi.txtFenbiFileDir=self.m_dirPicker9.GetPath()
-      print(self.m_dirPicker9.GetPath() )
+    #   self.localFenbi.txtFenbiFileDir=
+      txtFenbiFileDir=self.m_dirPicker9.GetPath()
+    #   cf = configparser.ConfigParser()
+    #   cf.read('config.ini')
+      conf.set("workDir", "txtFenbiFileDir", txtFenbiFileDir)
+      conf.write(open("config.ini", "w"))      
 
 
     def calcKdayHisDays(self,event) :
@@ -61,28 +69,30 @@ class MianWindow(basewin.baseMainWindow):
         self.mskday.KdayHisGoOn()
 
     def temp(self, event):
-    #  self.localFenbi.txtToHd5Today()
-    #  self.localFenbi.threadTxtToHd5day()
-       self.localFenbi.calcDpFenbi()
-     
-    
-    #   txtFile=self.localFenbi.allKdayDir+'\\'+'SH600000.txt'
-    #   print(txtFile)
-     
-    #   engineListAppend= self.localFenbi.GetWriteConnect()         
-    #   data.to_sql('fenbi_SH600000',engineListAppend,if_exists='append',index=False,chunksize=1000)
-    #    self.mskday.getFileQueue() #得到所有股票存储H5文件列表
-    #    self.mskday.statustotal=self.mskday.file_queue.qsize() #设置进度条总数   
-    #    for x in range(10): #建立线程
-    #      x += 1
-    #      t1 = threading.Thread(target=self.mskday.saveAllH5ToSqlserver(self.status), name='getHisKdays %d 号进程' % (x)) #获取tushare数据
-    #      t1.start()
-    #      t1.join()     
-    #   print(self.mskday.allKdayDir) 
-    #    self.mskday.getHisDates(self.mskday.stockBasic)
-    #   print(self.mskday.hisDate_queue.get())statustotal
-    #   self.hisDate_queue.clear() 
-    #   self.mskday.getHisDates(self.mskday.stockBasic)
+      
+
+        #  self.localFenbi.txtToHd5Today()
+        #  self.localFenbi.threadTxtToHd5day()
+        #    self.localFenbi.calcDpFenbi()          
+        # dataset_win.Show()   
+        dirset_win.Show()
+        #   txtFile=self.localFenbi.allKdayDir+'\\'+'SH600000.txt'
+        #   print(txtFile)
+        
+        #   engineListAppend= self.localFenbi.GetWriteConnect()         
+        #   data.to_sql('fenbi_SH600000',engineListAppend,if_exists='append',index=False,chunksize=1000)
+        #    self.mskday.getFileQueue() #得到所有股票存储H5文件列表
+        #    self.mskday.statustotal=self.mskday.file_queue.qsize() #设置进度条总数   
+        #    for x in range(10): #建立线程
+        #      x += 1
+        #      t1 = threading.Thread(target=self.mskday.saveAllH5ToSqlserver(self.status), name='getHisKdays %d 号进程' % (x)) #获取tushare数据
+        #      t1.start()
+        #      t1.join()     
+        #   print(self.mskday.allKdayDir) 
+        #    self.mskday.getHisDates(self.mskday.stockBasic)
+        #   print(self.mskday.hisDate_queue.get())statustotal
+        #   self.hisDate_queue.clear() 
+        #   self.mskday.getHisDates(self.mskday.stockBasic)
         # self.mskday.getKdayH5('002862.SZ','20000101','20181129')
         # h5 = pd.HDFStore(self.mskday.allKdayDir+'kday_002862.SZ_20170411_20181201','r')
         # df = h5['data']
@@ -97,9 +107,9 @@ class MianWindow(basewin.baseMainWindow):
         # print(self.mskday.file_queue.get())       
         
 
-    def createKdayTable( self, event ):
+    def createKdayTable(self, event ):
        self.mskday.createTables(self.status,'kday_')    #每天定时获取最新股市股票代码列表，如果有新股，生成kday表
-    #    self.mskday.createTable('kday_','000002.SZ') 
+       #    self.mskday.createTable('kday_','000002.SZ') 
 
     def getAllHisKdaysToH5( self, event ):
        if self.mskday.hisDate_queue.qsize()==0:          
@@ -177,9 +187,54 @@ class MianWindow(basewin.baseMainWindow):
                     self.mskday.kday_close(today)            
         
 
+class databaseSetWindow(datasetwin.databaseSet): 
+  def init_dbSet_window(self): 
+     #获取config配置文件     
+     self.conf = configparser.ConfigParser()
+     self.conf.read('config.ini') 
+    #  host=self.conf.get()        
+
+  def dbsetConfirm( self, event ):
+     host=self.txt_host.GetValue()  
+     self.conf.set("database", "txtFenbiFileDir", host)
+     self.conf.write(open("config.ini", "w"))   
+     self.Hide()
+
+  def dbsetWinClose( self, event ):
+    self.Hide() 
+
+class dirSetWindow(dirsetWin.dirSet): 
+  def init_dirSet_window(self):       
+     #获取config配置文件 
+     self.conf = configparser.ConfigParser()
+     self.conf.read('config.ini') 
+     #读取config：workDir配置，在对应控件上显示
+     txtfenbifiledir =self.conf.get('workDir','txtfenbifiledir')
+     self.pk_fbtxtDir.SetPath(txtfenbifiledir)
+
+  def dirsetConfirm( self, event ):
+     txtfenbifiledir=self.pk_fbtxtDir.GetPath()
+     self.conf.set('workDir','txtfenbifiledir',txtfenbifiledir)
+     self.conf.write(open("config.ini", "w"))   
+     self.Hide()
+
+  def dirsetWinClose( self, event ):
+	  self.Hide()
+   
+
 if __name__ == '__main__':
     app = wx.App()
+    #主窗口
     main_win = MianWindow(None)
     main_win.init_main_window()
     main_win.Show()
+    
+    #dbset设置config窗口，默认不显示
+    dataset_win=databaseSetWindow(None)
+    dataset_win.init_dbSet_window()
+
+    # dirsert设置config窗口，默认不显示
+    dirset_win=dirSetWindow(None)
+    dirset_win.init_dirSet_window()
+
     app.MainLoop()

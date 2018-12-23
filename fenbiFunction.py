@@ -17,12 +17,16 @@ import random
 import basewin
 import timeit
 import baseFunction
+import configparser
+import main_win
 
 class FenBi:
-  def __init__(self,host,user,pwd,db,myOrms):
+  def __init__(self):     
+    #  conf=main_win.conf  #获取config配置文件   
+    #  self.txtFenbiFileDir=conf.get("workDir", "txtFenbiFileDir")
+    #  print(self.txtFenbiFileDir)
      self.baseFunc = baseFunction.baseFunc(host="127.0.0.1\MSSERVER2008", user="sa", pwd="123", db="fenbi",myOrms="mssql")   
-     self.hd5DestDir="H:\\fenbiHd5\\"
-     self.txtFenbiFileDir='I:\\fenbiTxt'
+     self.hd5DestDir="H:\\fenbiHd5\\"    
      self.fenbiQueue=LifoQueue()
      self.pblist=[]
      self.trdlist=[]
@@ -140,18 +144,18 @@ class FenBi:
     dfSZ=df[df['ts_code'].str.contains('SZ$')]
     dfSH=df[df['ts_code'].str.contains('SH$')]
     trans_num=len(df) # '总成交笔数',
-    ave__num= # '均笔成交量',
-    ave_amout # '均笔成交金额',
-    buy_num #'买入笔数',
-    buy_amount#'买入金额（万元）',
-    buy_ave_num#'买入每笔成交量',
-    buy_ave_amount#'买入均笔金额',
-    sell_num # '卖出笔数',
-    sell_amount#'卖出金额（万元）',
-    sell_ave_num #'卖出每笔成交量',
-    sell_ave_amount #'卖出均笔金额',
-    buy_sell_num #'买入卖出比（成交量）',
-    buy_sell_amount #'买入卖出比（成交金额）',
+    # ave__num= # '均笔成交量',
+    # ave_amout # '均笔成交金额',
+    # buy_num #'买入笔数',
+    # buy_amount#'买入金额（万元）',
+    # buy_ave_num#'买入每笔成交量',
+    # buy_ave_amount#'买入均笔金额',
+    # sell_num # '卖出笔数',
+    # sell_amount#'卖出金额（万元）',
+    # sell_ave_num #'卖出每笔成交量',
+    # sell_ave_amount #'卖出均笔金额',
+    # buy_sell_num #'买入卖出比（成交量）',
+    # buy_sell_amount #'买入卖出比（成交金额）',
     
     trans_num=len(df)
     print(volnum_sh)
