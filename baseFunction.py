@@ -21,11 +21,12 @@ import timeit
 # engine=create_engine("mssql+pymssql://sa:1@192.168.151.141:1433/ba_zyyy_new?charset=utf8",echo=True)
 #import decimal
 class baseFunc:
-  def __init__(self,host,user,pwd,db,myOrms):
+  def __init__(self,host,port,user,pwd,db,myOrms):
     ts.set_token('38bb3cd1b6af2d75a7d7e506db8fd60354168642b400fa2104af81c5') #设置tushare.token
     self.pro = ts.pro_api()            #连接tushare  
     self.mysqlormssql=myOrms
     self.host=host                     #获取数据库连接字符串
+    self.port=int(port)
     self.user=user
     self.pwd=pwd
     self.db=db
@@ -55,15 +56,23 @@ class baseFunc:
         handler.setFormatter(formatter)
         logger.addHandler(handler)
         # logger.addHandler(handlerStream)
-        logging.info('开始获取%s的数据' % (self.getDatetime()))
+        logging.info('开始获取%s的数据' % (self.getDatetime('no')))
 
-  def getDatetime(self):              #获取当天日期       
+  def getDatetime(self,type):              #获取当天日期       
+      if type=='no':
         taday = dt.now().strftime('%Y%m%d')
-        return taday  
+      if type=='-' : 
+        taday = dt.now().strftime("%Y-%m-%d")
+      return taday  
+  
+  def tscodeTran(self,codets):
+    tscode=codets[-2:].lower()+codets[0:6]
+    return tscode
+
 
   def getTrade_cal(self):             #获取交易日、股票列表队列，用于多线程      
-        trade_cal = self.pro.query('trade_cal', exchange='SZSE', start_date=self.getDatetime(),
-                                   end_date=self.getDatetime(), is_open=1)
+        trade_cal = self.pro.query('trade_cal', exchange='SZSE', start_date=self.getDatetime('no'),
+                                   end_date=self.getDatetime('no'), is_open=1)
         #将日期列转换为list，便于使用队列
         trade_cals = trade_cal['cal_date'].tolist()
         for trade_cal in trade_cals:
@@ -90,7 +99,7 @@ class baseFunc:
           self.file_queue.put(list1[1])
 
   def isNotTradeDay(self):    
-    df=self.pro.query('trade_cal', start_date=self.getDatetime(), end_date=self.getDatetime())
+    df=self.pro.query('trade_cal', start_date=self.getDatetime('no'), end_date=self.getDatetime('no'))
     self.isTradeDay=int(df.iloc[0,2])
 
   def  GetWriteConnect(self):
@@ -107,19 +116,13 @@ class baseFunc:
 
   def GetConnect(self):
     if self.mysqlormssql=='mssql':
-     self.connect=pymssql.connect(host=self.host,user=self.user,password=self.pwd,database=self.db,charset='utf8')    
+      self.connect=pymssql.connect(host=self.host,user=self.user,password=self.pwd,database=self.db,charset='utf8')    
     if self.mysqlormssql=='mysql':
-     self.connect=pymysql.connect(host=self.host,port=3306,user=self.user,password=self.pwd,database=self.db,charset='utf8')    
+      self.connect=pymysql.connect(host=self.host,port=3306,user=self.user,password=self.pwd,database=self.db,charset='utf8')    
     cur=self.connect.cursor()
     return cur
 
-  def GetDbConnect(self,mysqlormssql):
-    if mysqlormssql=='mssql':
-     self.connect=pymssql.connect(host=self.host,user=self.user,password=self.pwd,database=self.db,charset='utf8')    
-    if mysqlormssql=='mysql':
-     self.connect=pymysql.connect(host=self.host,port=3306,user=self.user,password=self.pwd,database=self.db,charset='utf8')    
-    cur=self.connect.cursor()
-    return cur  
+  
 
   def ExecSql(self,sql):
      cur=self.GetConnect()
@@ -157,7 +160,11 @@ class baseFunc:
   def createTable(self,tableKind,tableName):
     # 生成表,使用sqlserver存储过程实现（createTable）
     # exesql ="exec createTable " +"'"+tableKind+"'" +","+"'"+tableName+"'"    
-    exesql = "CALL `create_table`("+ "'"+tableKind+"'" +","+"'"+tableName+"'" +");"         
+    if self.mysqlormssql=='mysql':
+     exesql = "CALL `create_table`("+ "'"+tableKind+"'" +","+"'"+tableName+"'" +");"         
+    if self.mysqlormssql=='mssql':
+      if tableKind=='fenbi_':
+        exesql = "exec createTableFb "+ "'"+tableKind+"'" +","+"'"+tableName+"'"        
     curCreate=self.GetConnect()               
     curCreate.execute(exesql)
     self.connect.commit()
@@ -171,6 +178,7 @@ class baseFunc:
     total1=df['ts_code'].size #获取股票总数，做计算进度条分母
     for index, row in self.stockBasic.iterrows():    
        ts_code=row["ts_code"]
+       ts_code=self.tscodeTran(ts_code)
        self.createTable(tableKind,ts_code)  
        progress=int(index*100/total1) #计算进度条      
        statusBar.gauge.SetValue(progress)   

@@ -1,6 +1,8 @@
 import time
 from datetime import datetime as dt
-import os
+import urllib.request
+import re
+import os, base64
 import pymysql
 import pymssql
 import pandas as pd
@@ -21,15 +23,43 @@ import configparser
 import main_win
 
 class FenBi:
-  def __init__(self):     
-    #  conf=main_win.conf  #获取config配置文件   
+  def __init__(self):   
     #  self.txtFenbiFileDir=conf.get("workDir", "txtFenbiFileDir")
     #  print(self.txtFenbiFileDir)
-     self.baseFunc = baseFunction.baseFunc(host="127.0.0.1\MSSERVER2008", user="sa", pwd="123", db="fenbi",myOrms="mssql")   
-     self.hd5DestDir="H:\\fenbiHd5\\"    
+     #获取config配置文件     
+     conf = configparser.ConfigParser()
+     conf.read('config.ini') 
+     #数据库连接
+     host=conf.get('database','host_fenbi')
+     host=base64.decodestring(bytes(host, 'utf-8')) 
+     host= str(host, encoding = "utf-8")
+     port=conf.get('database','port_fenbi')
+     port=base64.decodestring(bytes(port, 'utf-8')) 
+     port= str(port, encoding = "utf-8")
+     user=conf.get('database','user_fenbi')
+     user=base64.decodestring(bytes(user, 'utf-8'))     #解密     
+     user= str(user, encoding = "utf-8")  
+     pwd=conf.get('database','pwd_fenbi')
+     pwd=base64.decodestring(bytes(pwd, 'utf-8'))
+     pwd= str(pwd, encoding = "utf-8")
+     db=conf.get('database','db_fenbi')
+     db=base64.decodestring(bytes(db, 'utf-8'))
+     db= str(db, encoding = "utf-8")
+     mysqlormssql=conf.get('database','msormy_fenbi')
+     mysqlormssql=base64.decodestring(bytes(mysqlormssql, 'utf-8'))
+     mysqlormssql= str(mysqlormssql, encoding = "utf-8")
+     #文件目录
+
+     self.fbtxt_todaydir=conf.get('workDir','fb_txtFileTodayDir')
+     self.hd5DestDir=conf.get('workDir','fb_hd5DestDir')  
+
+     self.baseFunc = baseFunction.baseFunc(host=host,port=port, user=user, pwd=pwd, db=db,myOrms=mysqlormssql)   
+     
      self.fenbiQueue=LifoQueue()
      self.pblist=[]
-     self.trdlist=[]
+     self.trdlist=[]     
+     t = time.localtime(time.time()) 
+     self.today=time.strftime("%Y%m%d", t) 
 
   def extrRar(self):
       self.baseFunc.allKdayDir='I:\\BaiduNetdiskDownload\\fenbi2018\\'
@@ -54,11 +84,8 @@ class FenBi:
           print(rar_file)
   
   def putTxtFileToQueue(self,scope): #生成分笔数据文件队列，供多线程使用
-    if scope=='today' :                      #生成当日数据文件队列
-      # rootdir = self.txtFenbiFileDir         #txt分笔文件根目录
-      todaydir = 'I:/fenbiTxtToday'         #当日分笔数据目录，只能保存当日分笔数据 
-      # todaydir=self.txtFenbiFileDir
-      list = os.listdir(todaydir) 
+    if scope=='today' :                      #生成当日数据文件队列     
+      list = os.listdir(self.fbtxt_todaydir) #fbtxt_todaydir:当日分笔数据目录，只能保存当日分笔数据 
       if  len(list)!=1:                      #保证该目录下只有当天的分笔文件
         return 0
       else:
@@ -79,8 +106,7 @@ class FenBi:
   def threadTxtToHd5day(self): #多线程生成当日分笔数据汇总文件
     isok=self.putTxtFileToQueue('today')  
     pblist=[] 
-    t = time.localtime(time.time())    
-    today=time.strftime("%Y%m%d", t) 
+    
     def txtToHd5Today1(args):                
       i=0
       while not self.fenbiQueue.empty():    
@@ -133,6 +159,7 @@ class FenBi:
       # result.insert(5, 'BS', abs(result['vol'])/result['vol'])             
       # result['vol']=abs(result['vol'])   
       
+      todayHdFileName=self.hd5DestDir
       h5 = pd.HDFStore('e:/20181210.h5','w', complevel=4, complib='blosc')
       h5['ts_code'] = result
       h5.close()
@@ -158,7 +185,7 @@ class FenBi:
     # buy_sell_amount #'买入卖出比（成交金额）',
     
     trans_num=len(df)
-    print(volnum_sh)
+    # print(volnum_sh)
          
 
   def txtToHd5Today(self,x):
@@ -199,8 +226,6 @@ class FenBi:
    #   09:55:27
    #         
 
-
-
   def txtToHd5 (self):
     rootdir = self.txtFenbiFileDir    
     list = os.listdir(rootdir) #列出文件夹下所有的目录与文件
@@ -240,6 +265,115 @@ class FenBi:
             #    h5.close()             
    #  if os.access("/file/path/foo.txt", os.W_OK):
   
+  def getHtml(self,url):
+      while True:
+          try:
+              html = urllib.request.urlopen(url, timeout=5).read()
+              break
+          except:
+              print("超时重试")
+      html = html.decode('gbk')
+      return html
+    
+  def getTable(self,html):
+      s = r'(?<=<table class="datatbl" id="datatbl">)([\s\S]*?)(?=</table>)'
+      pat = re.compile(s)
+      code = pat.findall(html)
+      return code
+    
+  def getTitle(self,tableString):
+      s = r'(?<=<thead)>.*?([\s\S]*?)(?=</thead>)'
+      pat = re.compile(s)
+      code = pat.findall(tableString)
+      s2 = r'(?<=<tr).*?>([\s\S]*?)(?=</tr>)'
+      pat2 = re.compile(s2)
+      code2 = pat2.findall(code[0])
+      s3 = r'(?<=<t[h,d]).*?>([\s\S]*?)(?=</t[h,d]>)'
+      pat3 = re.compile(s3)
+      code3 = pat3.findall(code2[0])
+      return code3
+    
+  def getBody(self,tableString):
+      s = r'(?<=<tbody)>.*?([\s\S]*?)(?=</tbody>)'
+      pat = re.compile(s)
+      code = pat.findall(tableString)
+      s2 = r'(?<=<tr).*?>([\s\S]*?)(?=</tr>)'
+      pat2 = re.compile(s2)
+      code2 = pat2.findall(code[0])
+      s3 = r'(?<=<t[h,d]).*?>(?!<)([\s\S]*?)(?=</)[^>]*>'
+      pat3 = re.compile(s3)
+      code3 = []
+      for tr in code2:
+          code3.append(pat3.findall(tr))
+      return code3
+    
+  # 股票代码
+  def getSinaFb(self,date,stockList): #爬取新浪单个分笔数据
+      # symbol = 'sz000001'
+      # # 日期
+      # dateObj = datetime.datetime(2018, 12, 28)
+      # date = dateObj.strftime("%Y-%m-%d")
+      
+      # 页码，因为不止1页，从第一页开始爬取 
+    pblist=[] 
+    while not stockList.empty():
+          page = 1   
+          # Url = 'http://market.finance.sina.com.cn/transHis.php?symbol=' + symbol + '&date=' + date + '&page=' + str(page)
+          # print(Url)
+          # html = getHtml(Url)
+          # table = getTable(html)
+          # tbody = getBody(table[0])
+          # data=pd.DataFrame(tbody,columns=['trade_time','price','updown','vol','amount','bs'])  
+          # data['trade_time']=date+' '+data['trade_time']
+          # data.insert(0, 'ts_code', symbol) 
+          # print(data)
+
+          codets=stockList.get()
+          tscode=codets[-2:].lower()+codets[0:6]
+          while True:
+              Url = 'http://market.finance.sina.com.cn/transHis.php?symbol=' + tscode + '&date=' + date + '&page=' + str(page)
+              print(Url)
+              html = getHtml(Url)
+              table = getTable(html)
+              if len(table) != 0:
+                  tbody = getBody(table[0])
+                  if len(tbody) == 0:
+                      print("结束")
+                      break
+                  else:
+                      data=pd.DataFrame(tbody,columns=['time','price','updown','vol','amount','bs'])  
+                      data=pd.DataFrame(tbody,columns=['trade_time','price','updown','vol','amount','bs'])  
+                      data['trade_time']=date+' '+data['trade_time']
+                      data.insert(0, 'ts_code', tscode)
+                      pblist.append(data)                     
+                      print(pblist)
+              else:
+                  print("当日无数据")
+                  break
+              page += 1
+            
+    result = pd.concat(pblist)
+    print(result)
+  
+  def test(self):
+    symbol = 'sz000001'
+    # dateObj = datetime.datetime(2018, 12, 28)
+    date =self.baseFunc.getDatetime('-')
+    # date = date.strftime("%Y-%m-%d")
+    print(date)
+    page = 1   
+    # Url = 'http://market.finance.sina.com.cn/transHis.php?symbol=' + symbol + '&date=' + '2018-12-28' + '&page=' + str(page)
+    Url='http://market.finance.sina.com.cn/transHis.php?symbol=sz000001&date=2018-12-28&page=1'
+    print(Url)
+    html = self.getHtml(Url)
+    table = self.getTable(html)
+    tbody = self.getBody(table[0])
+    data=pd.DataFrame(tbody,columns=['trade_time','price','updown','vol','amount','bs'])  
+    data['trade_time']=date+' '+data['trade_time']
+    data.insert(0, 'ts_code', symbol) 
+
+    data=data.sort_values(by="trade_time")
+    print(data)
 
 def main(): 
   pass
