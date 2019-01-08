@@ -11,18 +11,22 @@ class dirSetWindow(dirsetWin.dirSet): #lx:目录类型
      fb_txtfbfiledir =self.conf.get('workDir','fb_txtfiledir')
      fb_txtFileTodayDir =self.conf.get('workDir','fb_txtFileTodayDir')
      fb_hd5DestDir =self.conf.get('workDir','fb_hd5DestDir')
+     fbqx_ftpdir  =self.conf.get('workDir','fbqx_ftpdir')
      self.pk_fbtxtDir.SetPath(fb_txtfbfiledir) 
      self.pk_fbtxtTodayDir.SetPath(fb_txtFileTodayDir) 
      self.pk_fbHd5DestDir.SetPath(fb_hd5DestDir) 
+     self.pk_fbQxDir.SetPath(fbqx_ftpdir) 
 
   def btn_dirSetConfirm( self, event ):
      fb_txtfbfiledir=self.pk_fbtxtDir.GetPath()
      fb_txtFileTodayDir=self.pk_fbtxtTodayDir.GetPath()
      fb_hd5DestDir=self.pk_fbHd5DestDir.GetPath()
+     fbqx_ftpdir=self.pk_fbQxDir.GetPath()
 
      self.conf.set('workDir','fb_txtfiledir',fb_txtfbfiledir)
      self.conf.set('workDir','fb_txtFileTodayDir',fb_txtFileTodayDir)
      self.conf.set('workDir','fb_hd5DestDir',fb_hd5DestDir)
+     self.conf.set('workDir','fbqx_ftpdir',fbqx_ftpdir)
 
      self.conf.write(open("config.ini", "w"))   
      self.Destroy()

@@ -1,8 +1,7 @@
 import time
 from datetime import datetime as dt
 import os
-import pymysql
-import pymssql
+import pymysql,pymssql 
 import pandas as pd
 import numpy as np
 import tushare as ts
@@ -13,9 +12,11 @@ from time import sleep
 from queue import LifoQueue
 import queue
 import threading
+from ftplib import FTP
 import random
 import basewin
 import timeit
+
 
 # con = create_engine('mssql+pyodbc://username:password@myhost:port/databasename?driver=SQL+Server+Native+Client+10.0')
 # engine=create_engine("mssql+pymssql://sa:1@192.168.151.141:1433/ba_zyyy_new?charset=utf8",echo=True)
@@ -30,6 +31,7 @@ class baseFunc:
     self.user=user
     self.pwd=pwd
     self.db=db
+    self.engineListAppend=self.GetWriteConnect()
     self.hisDate_queue = LifoQueue()    #股票历史日期数据，用于分期获取数据
     self.trade_cal_queue = LifoQueue()  #初始化交易日队列
     self.stockBasic_queue = LifoQueue() #初始化股票代码队列
@@ -65,9 +67,31 @@ class baseFunc:
         taday = dt.now().strftime("%Y-%m-%d")
       return taday  
   
+  def extrRarFile(self,rarFile,destDir):  #解压缩文件
+    folder_name=r"C:\\Program Files\\7-Zip" #7z.exe位置    
+    os.chdir(folder_name)    
+    cmd = '7z.exe x "{}" -o{} -aos -r'.format(rarFile,destDir)
+    os.system(cmd)
+  
   def tscodeTran(self,codets):
     tscode=codets[-2:].lower()+codets[0:6]
     return tscode
+
+  def hhmmss(self,timestr):
+    hh=timestr[:2]
+    mm=timestr[2:4]
+    ss=timestr[4:]
+    hms=hh+':'+mm+':'+ss    
+    return hms
+
+  def getTscodeQueue(self)  : 
+     tscodeQueue=queue.Queue()
+     stcodes=self.stockBasic
+     stocksList=stcodes['ts_code'].tolist()
+        #循环将每个交易日塞进队列中
+     for stcodes in stocksList:
+        tscodeQueue.put(stcodes, True, 2)  
+     return tscodeQueue    
 
 
   def getTrade_cal(self):             #获取交易日、股票列表队列，用于多线程      
@@ -122,12 +146,16 @@ class baseFunc:
     cur=self.connect.cursor()
     return cur
 
-  
+  def ExecSqlReturn(self,sql):
+     cur=self.GetConnect()
+     cur.execute(sql)     
+     data =cur.fetchall() #获取查询到数据
+     return data
 
   def ExecSql(self,sql):
      cur=self.GetConnect()
-     cur.execute(sql)
-     self.connect.commit()
+     cur.execute(sql)     
+     self.connect.commit()       
      self.connect.close()
 
   def ExecQuery(self,sql):
@@ -546,6 +574,29 @@ class baseFunc:
     else:
         pass
         return False
+
+  def ftpconnect(self,host, username, password):
+    ftp = FTP()
+    # ftp.set_debuglevel(2)
+    ftp.connect(host, 21)
+    ftp.login(username, password)
+    return ftp
+
+  #从ftp下载文件
+  def downloadfile(self,ftp, remotepath, localpath):
+      bufsize = 1024
+      fp = open(localpath, 'wb')
+      ftp.retrbinary('RETR ' + remotepath, fp.write, bufsize)
+      ftp.set_debuglevel(0)
+      fp.close()
+
+  #从本地上传文件到ftp
+  def uploadfile(self,ftp, remotepath, localpath):
+      bufsize = 1024
+      fp = open(localpath, 'rb')
+      ftp.storbinary('STOR ' + remotepath, fp, bufsize)
+      ftp.set_debuglevel(0)
+      fp.close()
 
   def test(self,dt):
     # engineListAppend= self.GetWriteConnect()

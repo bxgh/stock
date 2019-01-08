@@ -41,7 +41,7 @@ class win_fenbi ( wx.Frame ):
 		self.m_button10 = wx.Button( self, wx.ID_ANY, u"增量生成分笔表", wx.DefaultPosition, wx.DefaultSize, 0 )
 		bSizer6.Add( self.m_button10, 0, wx.ALL, 5 )
 
-		self.m_button11 = wx.Button( self, wx.ID_ANY, u"MyButton", wx.DefaultPosition, wx.DefaultSize, 0 )
+		self.m_button11 = wx.Button( self, wx.ID_ANY, u"删 除 当 日数据", wx.DefaultPosition, wx.DefaultSize, 0 )
 		bSizer6.Add( self.m_button11, 0, wx.ALL, 5 )
 
 		self.m_button12 = wx.Button( self, wx.ID_ANY, u"test", wx.DefaultPosition, wx.DefaultSize, 0 )
@@ -60,7 +60,7 @@ class win_fenbi ( wx.Frame ):
 
 		bSizer7.Add( self.m_staticText11, 0, wx.ALIGN_CENTER|wx.ALL, 5 )
 
-		self.m_button5 = wx.Button( self, wx.ID_ANY, u"MyButton", wx.DefaultPosition, wx.DefaultSize, 0 )
+		self.m_button5 = wx.Button( self, wx.ID_ANY, u"腾讯分笔", wx.DefaultPosition, wx.DefaultSize, 0 )
 		bSizer7.Add( self.m_button5, 0, wx.ALL, 5 )
 
 		self.m_button6 = wx.Button( self, wx.ID_ANY, u"MyButton", wx.DefaultPosition, wx.DefaultSize, 0 )
@@ -103,12 +103,19 @@ class win_fenbi ( wx.Frame ):
 
 		self.SetSizer( gbSizer2 )
 		self.Layout()
+		self.m_timer1 = wx.Timer()
+		self.m_timer1.SetOwner( self, wx.ID_ANY )
+		self.m_timer1.Start( 1000 )
+
 
 		self.Centre( wx.BOTH )
 
 		# Connect Events
 		self.m_crFbTbls.Bind( wx.EVT_BUTTON, self.btn_crFbTbls )
+		self.m_button11.Bind( wx.EVT_BUTTON, self.btn_truncTables )
 		self.m_button12.Bind( wx.EVT_BUTTON, self.btn_test )
+		self.m_button5.Bind( wx.EVT_BUTTON, self.btn_QQFb )
+		self.Bind( wx.EVT_TIMER, self.timer_fb, id=wx.ID_ANY )
 
 	def __del__( self ):
 		pass
@@ -118,7 +125,16 @@ class win_fenbi ( wx.Frame ):
 	def btn_crFbTbls( self, event ):
 		event.Skip()
 
+	def btn_truncTables( self, event ):
+		event.Skip()
+
 	def btn_test( self, event ):
+		event.Skip()
+
+	def btn_QQFb( self, event ):
+		event.Skip()
+
+	def timer_fb( self, event ):
 		event.Skip()
 
 

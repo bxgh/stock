@@ -320,7 +320,7 @@
                                 <property name="gripper">0</property>
                                 <property name="hidden">0</property>
                                 <property name="id">wxID_ANY</property>
-                                <property name="label">MyButton</property>
+                                <property name="label">删 除 当 日数据</property>
                                 <property name="margins"></property>
                                 <property name="markup">0</property>
                                 <property name="max_size"></property>
@@ -353,6 +353,7 @@
                                 <property name="window_extra_style"></property>
                                 <property name="window_name"></property>
                                 <property name="window_style"></property>
+                                <event name="OnButtonClick">btn_truncTables</event>
                             </object>
                         </object>
                         <object class="sizeritem" expanded="1">
@@ -540,7 +541,7 @@
                                 <property name="gripper">0</property>
                                 <property name="hidden">0</property>
                                 <property name="id">wxID_ANY</property>
-                                <property name="label">MyButton</property>
+                                <property name="label">腾讯分笔</property>
                                 <property name="margins"></property>
                                 <property name="markup">0</property>
                                 <property name="max_size"></property>
@@ -573,6 +574,7 @@
                                 <property name="window_extra_style"></property>
                                 <property name="window_name"></property>
                                 <property name="window_style"></property>
+                                <event name="OnButtonClick">btn_QQFb</event>
                             </object>
                         </object>
                         <object class="sizeritem" expanded="1">
@@ -1156,6 +1158,15 @@
                         </object>
                     </object>
                 </object>
+            </object>
+            <object class="wxTimer" expanded="1">
+                <property name="enabled">1</property>
+                <property name="id">wxID_ANY</property>
+                <property name="name">m_timer1</property>
+                <property name="oneshot">0</property>
+                <property name="period">1000</property>
+                <property name="permission">protected</property>
+                <event name="OnTimer">timer_fb</event>
             </object>
         </object>
     </object>

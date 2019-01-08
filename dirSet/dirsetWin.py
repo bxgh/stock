@@ -43,7 +43,7 @@ class dirSet ( wx.Dialog ):
 
 		bSizer11.Add( self.m_staticText8, 0, wx.EXPAND|wx.TOP, 5 )
 
-		self.m_staticText9 = wx.StaticText( self, wx.ID_ANY, u"pwd", wx.DefaultPosition, wx.Size( -1,40 ), 0 )
+		self.m_staticText9 = wx.StaticText( self, wx.ID_ANY, u"  Fbqx_ftpdir:", wx.DefaultPosition, wx.Size( -1,40 ), 0 )
 		self.m_staticText9.Wrap( -1 )
 
 		bSizer11.Add( self.m_staticText9, 0, wx.EXPAND|wx.TOP, 5 )
@@ -76,8 +76,8 @@ class dirSet ( wx.Dialog ):
 		self.pk_fbHd5DestDir = wx.DirPickerCtrl( self, wx.ID_ANY, wx.EmptyString, u"Select a folder", wx.DefaultPosition, wx.DefaultSize, wx.DIRP_DEFAULT_STYLE|wx.DIRP_DIR_MUST_EXIST|wx.DIRP_SMALL )
 		bSizer13.Add( self.pk_fbHd5DestDir, 0, wx.EXPAND, 5 )
 
-		self.m_dirPicker4 = wx.DirPickerCtrl( self, wx.ID_ANY, wx.EmptyString, u"Select a folder", wx.DefaultPosition, wx.DefaultSize, wx.DIRP_DEFAULT_STYLE|wx.DIRP_DIR_MUST_EXIST|wx.DIRP_SMALL )
-		bSizer13.Add( self.m_dirPicker4, 0, wx.EXPAND, 5 )
+		self.pk_fbQxDir = wx.DirPickerCtrl( self, wx.ID_ANY, wx.EmptyString, u"Select a folder", wx.DefaultPosition, wx.DefaultSize, wx.DIRP_DEFAULT_STYLE|wx.DIRP_DIR_MUST_EXIST|wx.DIRP_SMALL )
+		bSizer13.Add( self.pk_fbQxDir, 0, wx.EXPAND, 5 )
 
 
 		bSizer12.Add( bSizer13, 1, wx.ALL|wx.EXPAND, 5 )

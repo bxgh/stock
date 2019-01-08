@@ -38,7 +38,7 @@ class MianWindow(basewin.baseMainWindow):
       self.count=100  
       self.status = customStatusBar(self)
       self.statusBar=self.SetStatusBar(self.status)  
-      
+    #   self.baseFunc = baseFunction.baseFunc(host='host',port=port, user=user, pwd=pwd, db=db,myOrms=mysqlormssql) 
     #   self.localFenbi = fenbiFunction.FenBi()          
       self.mskday = stockFunction.MSSQL(host="192.168.151.213", user="toshare1", pwd="toshare1", db="kday_qfq",myOrms="mysql")   
     #   self.kdayCal = kdayCalcData.CALCDATA(host="192.168.151.213", user="toshare1", pwd="toshare1", db="kday_qfq",myOrms="mysql") 
@@ -173,7 +173,7 @@ class MianWindow(basewin.baseMainWindow):
         if self.mskday.isTradeDay==1:   
             if StrIMSt == '16:00:00': 
                 if  self.mskday.isKdayClosed==0  :
-                    self.mskday.kday_close(today)  
+                    self.mskday.kday_close(today)                
 
             if StrIMSt == '17:00:00': 
                 if  self.mskday.isKdayClosed==0  :
@@ -193,7 +193,8 @@ class MianWindow(basewin.baseMainWindow):
                 
             if StrIMSt == '21:00:00': 
                 if  self.mskday.isKdayClosed==0  :
-                    self.mskday.kday_close(today)            
+                    # self.mskday.kday_close(today)            
+                    pass
 
 
 if __name__ == '__main__':
