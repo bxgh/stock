@@ -5,6 +5,9 @@ from ftplib import FTP
 import queue
 import pandas as pd
 
-stocksList=[['600',0]]
-print( stocksList[0][0])
+tscode='SZ300296'
+if tscode[0:5]=='SZ300':
+    print(tscode[0:6])
+else:
+    print('no')    
      

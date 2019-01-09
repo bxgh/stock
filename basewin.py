@@ -61,8 +61,14 @@ class baseMainWindow ( wx.Frame ):
 		self.m_button11 = wx.Button( self, wx.ID_ANY, u"日线数据库连接", wx.DefaultPosition, wx.DefaultSize, 0 )
 		bSizer2.Add( self.m_button11, 0, wx.ALL, 5 )
 
-		self.m_button12 = wx.Button( self, wx.ID_ANY, u"文件目录", wx.DefaultPosition, wx.DefaultSize, 0 )
+		self.m_button12 = wx.Button( self, wx.ID_ANY, u"文件目录设置", wx.DefaultPosition, wx.DefaultSize, 0 )
 		bSizer2.Add( self.m_button12, 0, wx.ALL, 5 )
+
+		self.m_button9 = wx.Button( self, wx.ID_ANY, u"代码范围设置", wx.DefaultPosition, wx.DefaultSize, 0 )
+		bSizer2.Add( self.m_button9, 0, wx.ALL, 5 )
+
+		self.m_button10 = wx.Button( self, wx.ID_ANY, u"定时器设置", wx.DefaultPosition, wx.DefaultSize, 0 )
+		bSizer2.Add( self.m_button10, 0, wx.ALL, 5 )
 
 
 		gbSizer1.Add( bSizer2, wx.GBPosition( 0, 0 ), wx.GBSpan( 1, 1 ), wx.EXPAND, 5 )
@@ -77,8 +83,8 @@ class baseMainWindow ( wx.Frame ):
 
 		bSizer3.Add( self.m_staticText2, 0, wx.ALIGN_CENTER|wx.ALL, 5 )
 
-		self.m_button3 = wx.Button( self, wx.ID_ANY, u"MyButton", wx.DefaultPosition, wx.DefaultSize, 0 )
-		bSizer3.Add( self.m_button3, 0, wx.ALL, 5 )
+		self.m_crFbTable = wx.Button( self, wx.ID_ANY, u"生成分笔数据表", wx.DefaultPosition, wx.DefaultSize, 0 )
+		bSizer3.Add( self.m_crFbTable, 0, wx.ALL, 5 )
 
 		self.m_button4 = wx.Button( self, wx.ID_ANY, u"MyButton", wx.DefaultPosition, wx.DefaultSize, 0 )
 		bSizer3.Add( self.m_button4, 0, wx.ALL, 5 )
@@ -140,6 +146,9 @@ class baseMainWindow ( wx.Frame ):
 		self.m_button2.Bind( wx.EVT_BUTTON, self.menu_connectFbDb )
 		self.m_button11.Bind( wx.EVT_BUTTON, self.menu_connectKDb )
 		self.m_button12.Bind( wx.EVT_BUTTON, self.menu_SetFileDir )
+		self.m_button9.Bind( wx.EVT_BUTTON, self.menu_SetdmScope )
+		self.m_button10.Bind( wx.EVT_BUTTON, self.menu_onTimerSet )
+		self.m_crFbTable.Bind( wx.EVT_BUTTON, self.btn_crFbTables )
 		self.m_Fb.Bind( wx.EVT_BUTTON, self.menu_FbUse )
 
 	def __del__( self ):
@@ -166,6 +175,15 @@ class baseMainWindow ( wx.Frame ):
 		event.Skip()
 
 	def menu_SetFileDir( self, event ):
+		event.Skip()
+
+	def menu_SetdmScope( self, event ):
+		event.Skip()
+
+	def menu_onTimerSet( self, event ):
+		event.Skip()
+
+	def btn_crFbTables( self, event ):
 		event.Skip()
 
 	def menu_FbUse( self, event ):

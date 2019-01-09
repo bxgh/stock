@@ -53,6 +53,9 @@ class FenBi:
      self.fbtxt_todaydir=conf.get('workDir','fb_txtFileTodayDir')
      self.hd5DestDir=conf.get('workDir','fb_hd5DestDir')  
      self.fbqx_ftpdir=conf.get('workDir','fbqx_ftpdir') 
+     #代码范围
+     self.fbqx_dmscope=conf.get('dmScope','fbqx')
+     self.fbqx_onTimer=conf.get('onTimer','fbqx')
 
      self.baseFunc = baseFunction.baseFunc(host=host,port=port, user=user, pwd=pwd, db=db,myOrms=mysqlormssql)   
      
@@ -94,8 +97,10 @@ class FenBi:
           print(rar_file)
   
   def putQxFbfileToQueue(self,fileDir):    #全息分笔数据文件生成文件名队列
-    for fileName in os.listdir(fileDir): 
-       self.fbQxFileQueue.put(fileDir+'/'+fileName)  
+    for fileName in os.listdir(fileDir):       
+      if fileName[0:5]==self.fbqx_dmscope:
+       self.fbQxFileQueue.put(fileDir+'/'+fileName) 
+        
 
   def QxCsvToHd5(self,txt_file):                        
           tscode=txt_file[-12:-4]       #SH603001   

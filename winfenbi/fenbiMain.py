@@ -27,9 +27,10 @@ class FenBimian(fenbiWin.win_fenbi):
   def btn_crFbTbls( self, event ):
     self.fbFunc.baseFunc.createTables(self.status,'fenbi_')
     
-  def fbqxCsvToDbf( self, event ):   
+  def fbqxCsvToDbf( self ):   
     fileDir=self.fbFunc.fbqx_ftpdir+'/csv/'+self.fbFunc.today    
     self.fbFunc.putQxFbfileToQueue(fileDir)
+    # print(self.fbFunc.putQxFbfileToQueue.q)
     self.fbFunc.threadQxFbToDbf()
    
 
@@ -69,14 +70,15 @@ class FenBimian(fenbiWin.win_fenbi):
     self.nowtime = time.strftime("%H:%M:%S", t) 
     ftpFileName='zbi_'+StrYMDt+'.rar'                      #ftp服务器端当日下载文件名
     localFileName=self.fbFunc.fbqx_ftpdir+'/' +ftpFileName #下载到本地路径和文件名   
+   
     if self.fbFunc.baseFunc.isTradeDay==1  : #是否交易日
        if StrIMSt == '15:00:00':
          self.fbFunc.fbqxDownloading=0 #初始化当日分笔全息数据下载标志，是否正在下载
-         self.fbFunc.fbqxDownloaded=0  #初始化当日分笔全息数据下载标志，是否已经下载完毕
-         self.fbFunc.extracted=0       #初始化下载后的分笔文件是否已经解压缩
-         self.iscsvTodbf=0             #判断csv是否已经入库
+         self.fbFunc.fbqxDownloaded=1  #初始化当日分笔全息数据下载标志，是否已经下载完毕
+         self.fbFunc.extracted=1       #初始化下载后的分笔文件是否已经解压缩
+         self.fbfunc.iscsvTodbf=0             #判断csv是否已经入库
 
-       if StrIMSt >= '16:10:00' and StrIMSt < '21:10:00':   #下载分笔全息数据，rar文件          
+       if StrIMSt >= '16:10:00'  and self.fbFunc.fbqx_onTimer=='1':   #下载分笔全息数据，rar文件    
           if self.fbFunc.fbqxDownloaded==0 :        #全息分笔文件是否下载完毕    
             if self.fbFunc.fbqxDownloading==0 :     #是否正在下载
               self.fbFunc.fbqxDownloading=1
@@ -103,8 +105,8 @@ class FenBimian(fenbiWin.win_fenbi):
                 except:
                   shutil.rmtree(destFileDir)  
             else:   #完成解压文件后，csv文件数据入库
-              if  self.iscsvTodbf==0 :
-                self.iscsvTodbf=1
+              if  self.fbFunc.iscsvTodbf==0 :
+                self.fbFunc.iscsvTodbf=1
                 self.fbqxCsvToDbf()
 
        

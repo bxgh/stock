@@ -9,11 +9,13 @@ import pandas as pd
 import threading
 import rarfile
 import os 
-
+import configparser
 import baseFunction,stockFunction,kdayCalcData
 import basewin
 from dbcon import config_dbset,config_dbsetFB
 from dirSet import config_dirset
+from dmScopeSet import dmScopeSet_set
+from ontimerSet import onTimerSet_set
 from winfenbi import fenbiMain
 
  
@@ -34,7 +36,10 @@ class customStatusBar(wx.StatusBar):#设置底部状态栏、进度条
 class MianWindow(basewin.baseMainWindow):
     def init_main_window(self):        
     #   global conf  #声明config文件全局变量
-      #设置状态栏      
+      #设置状态栏     
+      conf = configparser.ConfigParser()
+      conf.read('config.ini') 
+      self.kday_onTimer=conf.get('onTimer','kday')
       self.count=100  
       self.status = customStatusBar(self)
       self.statusBar=self.SetStatusBar(self.status)  
@@ -71,6 +76,17 @@ class MianWindow(basewin.baseMainWindow):
         dirset_win=config_dirset.dirSetWindow(None)
         dirset_win.init_dirSet_window()
         dirset_win.Show()
+
+    def menu_SetdmScope( self, event ):
+        # 代码范围设置config窗口，供分布式数据处理
+        dmscope_win=dmScopeSet_set.dmScopeSetWindow(None)
+        dmscope_win.init_dmScopeSet_window()
+        dmscope_win.Show()   
+
+    def menu_onTimerSet( self, event ):
+        onTimer_win=onTimerSet_set.onTimerSetWindow(None)
+        onTimer_win.init_onTimerSet_window()
+        onTimer_win.Show()  
 
     def menu_FbUse( self, event ):
         fbuse_win=fenbiMain.FenBimian(None)
@@ -166,11 +182,9 @@ class MianWindow(basewin.baseMainWindow):
             self.mskday.isNotTradeDay()            
             self.mskday.setStockList()
             self.mskday.isKdayClosed=0 
-
-        if StrIMSt == '14:54:00':          
-            print('hk')
         
-        if self.mskday.isTradeDay==1:   
+        
+        if self.mskday.isTradeDay==1 and self.kday_onTimer==1:   
             if StrIMSt == '16:00:00': 
                 if  self.mskday.isKdayClosed==0  :
                     self.mskday.kday_close(today)                
