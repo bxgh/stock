@@ -102,7 +102,7 @@ class FenBi:
        self.fbQxFileQueue.put(fileDir+'/'+fileName) 
         
 
-  def QxCsvToHd5(self,txt_file):                        
+  def QxCsvToHd5(self,txt_file):     #大富翁全息分笔数据入库                   
           tscode=txt_file[-12:-4]       #SH603001   
           tscode=tscode.lower()          
           if os.access(txt_file, os.R_OK):            
@@ -159,7 +159,7 @@ class FenBi:
     h5.close()
     print(result)       
 
-  def threadQxFbToDbf(self): #腾讯分笔数据收盘下载数据（全部下载完成需要6个小时）
+  def threadQxFbToDbf(self): #大富翁全息分笔数据收盘下载数据（全部下载完成需要6个小时）
     start=dt.now()    
     exitFlag = 0
     # pblist=[]
@@ -726,6 +726,67 @@ class FenBi:
     self.fbOntimeQueue.put([tscode,page], True, 2)   
     print('2 ',self.fbOntimeQueue.qsize()) 
     return page    
+
+  def threadQQonTime(self): #腾讯分笔数据实时下载数据
+    start=dt.now()    
+    exitFlag = 0
+    # pblist=[]
+    class myThread (threading.Thread):
+      def __init__(self, threadID, name, q):
+          threading.Thread.__init__(self)
+          self.threadID = threadID
+          self.name = name
+          self.q = q
+      def run(self):
+          print ("开启线程：" + self.name)
+          process_data(self.name, self.q)
+          print ("退出线程：" + self.name)
+  
+    def process_data(threadName, q):
+      while not exitFlag:
+          # queueLock.acquire()
+          if not workQueue.empty():
+              txt_file = q.get()
+              self.QxCsvToHd5(txt_file)
+              # queueLock.release()
+              print ("%s processing %s" % (threadName, txt_file))          
+          time.sleep(1) 
+    threadList=[]
+    for x in range(20):
+      threadList.append('Thread-'+str(x))
+    # threadList = ["Thread-1", "Thread-2", "Thread-3","Thread-4","Thread-5","Thread-6","Thread-7","Thread-8","Thread-9","Thread-10","Thread-11","Thread-12"]
+    # nameList = ["One", "Two", "Three", "Four", "Five"]
+    # queueLock = threading.Lock()
+    workQueue=self.fbQxFileQueue
+    threads = []
+    threadID = 1
+
+    # 创建新线程
+    for tName in threadList:
+        thread = myThread(threadID, tName, workQueue)
+        thread.start()
+        threads.append(thread)
+        threadID += 1
+
+    # 填充队列
+    # queueLock.acquire()
+    # workQueue=self.baseFunc.stockBasic_queue        
+    # queueLock.release()
+
+    # 等待队列清空
+    while not workQueue.empty():
+        pass
+
+    # 通知线程是时候退出
+    exitFlag = 1
+
+    # 等待所有线程完成
+    for t in threads:
+        t.join()
+    print ("退出主线程")
+
+    print(start)
+    print(dt.now())
 
 
 def main(): 

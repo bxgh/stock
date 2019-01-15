@@ -73,7 +73,7 @@ class baseFunc:
     cmd = '7z.exe x "{}" -o{} -aos -r'.format(rarFile,destDir)
     os.system(cmd)
   
-  def tscodeTran(self,codets):
+  def tscodeTran(self,codets):  #000001.SZ to sz000001
     tscode=codets[-2:].lower()+codets[0:6]
     return tscode
 

@@ -67,7 +67,7 @@ class FenBimian(fenbiWin.win_fenbi):
     StrYMDt = time.strftime("%Y%m%d", t)         
     # StrYMDt='20190104'
     StrIMSt = time.strftime("%H:%M:%S", t)   
-    self.nowtime = time.strftime("%H:%M:%S", t) 
+    self.fbFunc.nowtime = time.strftime("%H:%M:%S", t) 
     ftpFileName='zbi_'+StrYMDt+'.rar'                      #ftp服务器端当日下载文件名
     localFileName=self.fbFunc.fbqx_ftpdir+'/' +ftpFileName #下载到本地路径和文件名   
    
@@ -78,7 +78,7 @@ class FenBimian(fenbiWin.win_fenbi):
          self.fbFunc.extracted=1       #初始化下载后的分笔文件是否已经解压缩
          self.fbfunc.iscsvTodbf=0             #判断csv是否已经入库
 
-       if StrIMSt >= '16:10:00'  and self.fbFunc.fbqx_onTimer=='1':   #下载分笔全息数据，rar文件    
+       if StrIMSt >= '16:10:00'  and self.fbFunc.onTimer_isFbqxFtpDown=='1':   #下载大富翁分笔全息数据，rar文件    
           if self.fbFunc.fbqxDownloaded==0 :        #全息分笔文件是否下载完毕    
             if self.fbFunc.fbqxDownloading==0 :     #是否正在下载
               self.fbFunc.fbqxDownloading=1
@@ -104,10 +104,11 @@ class FenBimian(fenbiWin.win_fenbi):
                   self.fbFunc.extracted=1
                 except:
                   shutil.rmtree(destFileDir)  
-            else:   #完成解压文件后，csv文件数据入库
-              if  self.fbFunc.iscsvTodbf==0 :
-                self.fbFunc.iscsvTodbf=1
-                self.fbqxCsvToDbf()
+            # else:   #完成解压文件后，csv文件数据入库
+            #   if  self.fbFunc.iscsvTodbf==0 :
+            #     self.fbFunc.iscsvTodbf=1
+            #     self.fbqxCsvToDbf()
+
 
        
     

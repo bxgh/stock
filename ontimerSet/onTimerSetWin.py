@@ -43,7 +43,7 @@ class onTimerSet ( wx.Dialog ):
 
 		bSizer11.Add( self.m_staticText8, 0, wx.ALL, 5 )
 
-		self.m_staticText9 = wx.StaticText( self, wx.ID_ANY, u"pwd", wx.DefaultPosition, wx.Size( -1,30 ), 0 )
+		self.m_staticText9 = wx.StaticText( self, wx.ID_ANY, u"全息FTP下载", wx.DefaultPosition, wx.Size( -1,30 ), 0 )
 		self.m_staticText9.Wrap( -1 )
 
 		bSizer11.Add( self.m_staticText9, 0, wx.ALL, 5 )
@@ -74,8 +74,8 @@ class onTimerSet ( wx.Dialog ):
 		self.txt_kday_onTimer = wx.TextCtrl( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, 0 )
 		bSizer13.Add( self.txt_kday_onTimer, 0, wx.ALL|wx.EXPAND, 5 )
 
-		self.txt_pwd = wx.TextCtrl( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, 0 )
-		bSizer13.Add( self.txt_pwd, 0, wx.ALL|wx.EXPAND, 5 )
+		self.txt_QxFtpDownload = wx.TextCtrl( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, 0 )
+		bSizer13.Add( self.txt_QxFtpDownload, 0, wx.ALL|wx.EXPAND, 5 )
 
 		self.txt_db = wx.TextCtrl( self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, 0 )
 		bSizer13.Add( self.txt_db, 0, wx.ALL|wx.EXPAND, 5 )
