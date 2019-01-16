@@ -14,7 +14,6 @@ from queue import LifoQueue
 import queue
 import threading
 import random
-import basewin
 import timeit
 
 # con = create_engine('mssql+pyodbc://username:password@myhost:port/databasename?driver=SQL+Server+Native+Client+10.0')
@@ -23,6 +22,7 @@ import timeit
 class MSSQL:
   def __init__(self,host,user,pwd,db,myOrms):
     ts.set_token('38bb3cd1b6af2d75a7d7e506db8fd60354168642b400fa2104af81c5') #设置tushare.token
+    self.api = ts.pro_api('38bb3cd1b6af2d75a7d7e506db8fd60354168642b400fa2104af81c5')  
     self.pro = ts.pro_api()            #连接tushare  
     self.mysqlormssql=myOrms
     self.host=host                     #获取数据库连接字符串
@@ -40,8 +40,14 @@ class MSSQL:
     #股票交易代码list
     self.stockBasic = self.pro.stock_basic(exchange='',fields='ts_code,symbol,name,area,industry,fullname,enname,market,exchange,curr_type,list_status,list_date,delist_date,is_hs')  
     self.isNotTradeDay()                #获取是否交易日
+    self.getTrade_cal()                 #初始化交易日期队列、股票代码队列     
+
+  def MarketOpen(self)  :   #开盘初始化
+    self.stockBasic = self.pro.stock_basic(exchange='',fields='ts_code,symbol,name,area,industry,fullname,enname,market,exchange,curr_type,list_status,list_date,delist_date,is_hs')  
+    self.isNotTradeDay()                #获取是否交易日
     self.getTrade_cal()                 #初始化交易日期队列、股票代码队列
-    self.api = ts.pro_api('38bb3cd1b6af2d75a7d7e506db8fd60354168642b400fa2104af81c5')       
+    if self.isTradeDay==1:
+      self.createTables('','kday_') 
 
   def log(self):
         ''' 日志功能函数'''
@@ -155,15 +161,15 @@ class MSSQL:
 
   def createTables(self,statusBar,tableKind) :
     # 批量生成表 
-    statusBar.gauge.SetValue(0) #初始化进度条
+    # statusBar.gauge.SetValue(0) #初始化进度条
     df=self.stockBasic
     total1=df['ts_code'].size #获取股票总数，做计算进度条分母
     for index, row in self.stockBasic.iterrows():    
        ts_code=row["ts_code"]
        self.createTable(tableKind,ts_code)  
-       progress=int(index*100/total1) #计算进度条      
-       statusBar.gauge.SetValue(progress)   
-    statusBar.gauge.SetValue(100)                
+      #  progress=int(index*100/total1) #计算进度条      
+    #    statusBar.gauge.SetValue(progress)   
+    # statusBar.gauge.SetValue(100)                
     return
 
   def renCol(self,tableKind,tableName):
@@ -528,7 +534,7 @@ class MSSQL:
         pass
         return False
 
-  def test(self,dt):
+  def test(self):
     # engineListAppend= self.GetWriteConnect()
     # df = self.pro.trade_cal(exchange='', start_date='20180506', end_date='')
     # df.to_sql('trade_cal',engineListAppend,if_exists='append',index=False,chunksize=1000) 

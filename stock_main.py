@@ -253,14 +253,15 @@ class MSSQL:
     stocks=[line.strip() for line in f.readlines()]
     for i in range(len(stocks)):
          queue_1.put(stocks[i])
+         print(stocks[i])
     # data1=ts.get_realtime_quotes(dL[0:880])
     # df=self.pro.suspend(ts_code=dL[0:880])    
     return queue_1
      
 def main():
   ms = MSSQL(host="127.0.0.1\MSSERVER2008", user="sa", pwd="123", db="stock")  
-  ms.getSuspends(ms.temp(),'')
-
+  # ms.getSuspends(ms.temp(),'')
+  ms.temp()
 
 #   ms.getSuspends()
  
