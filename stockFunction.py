@@ -412,7 +412,7 @@ class MSSQL:
     dflen=len(df)  
     #接收tushare收盘数据
     readSql = 'select count(*) from allKday_closed where trade_date = '+"'"+closeday+"'"
-    data = pd.read_sql_query(readSql,con = engineListAppend)
+    data = pd.read_sql_query(readSql,con = engineListAppend)    
     try :
       tradeDay=data.iloc[0,0]
     except:  
@@ -423,30 +423,26 @@ class MSSQL:
       curTruc.execute(trucSql)
       self.connect.commit()
       self.connect.close()  
-      i=0
-      i1=int(dflen/1000)  
-      while i<i1+1 :        
-          dfi=df[i*1000:(i+1)*1000]
-          try:
-            dfi.to_sql(tablename,engineListAppend,if_exists='append',index=False,chunksize=1000)         
-            self.isKdayClosed=1
-          except:          
-            self.isKdayClosed=0
-          i=i+1 
-    #收盘数据导入个股K线数据表
-    readSql = 'select ts_code from allKday_closed where trade_date = '+"'"+closeday+"'" #pd获取收盘日所有日线数据
-    tscodeList = pd.read_sql_query(readSql,con = engineListAppend)
-    for index,row in tscodeList.iterrows():    
-      ts_code=row["ts_code"]
-      rrSql = 'select * from `kday_'+ts_code+'` where trade_date = '+"'"+closeday+"'"+' and ts_code='+"'"+ts_code+"'"
-      tspd= pd.read_sql_query(rrSql,con = engineListAppend)  #判断是否已经导入日线到个股表
-      if len(tspd)==0 :  #如果没有导入，就执行导入。
-        wSql='insert into `kday_'+ts_code+"`"+" select * from allKday_closed where trade_date = "+"'"+closeday+"'"+" and ts_code="+"'"+ts_code+"'"
-        curTruc=self.GetConnect()         
-        curTruc.execute(wSql)
-        self.connect.commit()
-        self.connect.close()  
-        
+      try:
+        # 导入总表allKday_closed
+        df.to_sql(tablename,engineListAppend,if_exists='append',index=False,chunksize=1000)         
+        #收盘数据导入个股K线数据表
+        readSql = 'select ts_code from allKday_closed where trade_date = '+"'"+closeday+"'" #pd获取收盘日所有日线数据
+        tscodeList = pd.read_sql_query(readSql,con = engineListAppend)
+        for index,row in tscodeList.iterrows():    
+          ts_code=row["ts_code"]
+          self.createTable('kday_',ts_code)
+          rrSql = 'select * from `kday_'+ts_code+'` where trade_date = '+"'"+closeday+"'"+' and ts_code='+"'"+ts_code+"'"
+          tspd= pd.read_sql_query(rrSql,con = engineListAppend)  #判断是否已经导入日线到个股表
+          if len(tspd)==0 :  #如果没有导入，就执行导入。
+            wSql='insert into `kday_'+ts_code+"`"+" select * from allKday_closed where trade_date = "+"'"+closeday+"'"+" and ts_code="+"'"+ts_code+"'"
+            curTruc=self.GetConnect()         
+            curTruc.execute(wSql)
+            self.connect.commit()
+            self.connect.close()  
+        self.isKdayClosed=1  
+      except :     
+        self.isKdayClosed=0
 
 
   def saveAllH5ToSqlserver(self,statusBar,engineListAppend) :  
