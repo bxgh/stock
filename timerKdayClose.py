@@ -44,8 +44,8 @@ if __name__ == '__main__':
     now=datetime.datetime.now()    
     schedOpenTime0=datetime.datetime(year,month,day,8)    #设置开盘初始化时间，当天8:00
     schedOpenTime1=datetime.datetime(year,month,day+1,8)  #设置开盘初始化时间次日8:00
-    schedKdayCloseTime0=datetime.datetime(year,month,day,19,50)    #设置日线收盘时间，当天16:30
-    schedKdayCloseTime1=datetime.datetime(year,month,day+1,19,50)    #设置日线收盘时间，次日16:30
+    schedKdayCloseTime0=datetime.datetime(year,month,day,20,15)    #设置日线收盘时间，当天16:30
+    schedKdayCloseTime1=datetime.datetime(year,month,day+1,20,15)    #设置日线收盘时间，次日16:30
 
     if now>schedOpenTime0 :
       incOpen=(schedOpenTime1-now).seconds     #启动开盘时间
@@ -60,4 +60,5 @@ if __name__ == '__main__':
     print(incKdayClose)     
 
     mskday = stockFunction.MSSQL(host="192.168.151.213", user="toshare1", pwd="toshare1", db="kday_qfq",myOrms="mysql")  
+    mskday.MarketOpen()
     ontimer(incOpen,incKdayClose)
