@@ -43,8 +43,8 @@ if __name__ == '__main__':
     now=datetime.datetime.now()    
     schedOpenTime0=datetime.datetime(year,month,day,8)    #设置开盘初始化时间，当天8:00
     schedOpenTime1=datetime.datetime(year,month,day+1,8)  #设置开盘初始化时间次日8:00
-    schedKdayCloseTime0=datetime.datetime(year,month,day,18,22)    #设置日线收盘时间，当天16:30
-    schedKdayCloseTime1=datetime.datetime(year,month,day+1,18,22)    #设置日线收盘时间，次日16:30
+    schedKdayCloseTime0=datetime.datetime(year,month,day,18,30)    #设置日线收盘时间，当天16:30
+    schedKdayCloseTime1=datetime.datetime(year,month,day+1,18,30)    #设置日线收盘时间，次日16:30
 
     if now>schedOpenTime0 :
       incOpen=(schedOpenTime1-now).seconds     #启动开盘时间
