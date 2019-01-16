@@ -416,7 +416,7 @@ class MSSQL:
     try :
       tradeDay=data.iloc[0,0]
     except:  
-      tradeDay=0
+      tradeDay=0     
     if (dflen > tradeDay) :
       trucSql = 'delete from allKday_closed where trade_date = '+"'"+closeday+"'"
       curTruc=self.GetConnect()         
@@ -428,9 +428,10 @@ class MSSQL:
         df.to_sql(tablename,engineListAppend,if_exists='append',index=False,chunksize=1000)         
         #收盘数据导入个股K线数据表
         readSql = 'select ts_code from allKday_closed where trade_date = '+"'"+closeday+"'" #pd获取收盘日所有日线数据
-        tscodeList = pd.read_sql_query(readSql,con = engineListAppend)
+        tscodeList = pd.read_sql_query(readSql,con = engineListAppend)        
         for index,row in tscodeList.iterrows():    
           ts_code=row["ts_code"]
+          print(ts_code)
           self.createTable('kday_',ts_code)
           rrSql = 'select * from `kday_'+ts_code+'` where trade_date = '+"'"+closeday+"'"+' and ts_code='+"'"+ts_code+"'"
           tspd= pd.read_sql_query(rrSql,con = engineListAppend)  #判断是否已经导入日线到个股表
@@ -530,22 +531,7 @@ class MSSQL:
         pass
         return False
 
-  def test(self):
-    # engineListAppend= self.GetWriteConnect()
-    # df = self.pro.trade_cal(exchange='', start_date='20180506', end_date='')
-    # df.to_sql('trade_cal',engineListAppend,if_exists='append',index=False,chunksize=1000) 
-    # df = self.pro.suspend(ts_code='000004.SZ', suspend_date='', resume_date='', fields='')
-    # print(df)
-    # df =self.stockBasic_queue.get(True,2)
-    # dL = self.stockBasic['ts_code'].tolist()     
-    # queue1=self.stockBasic_queue
-    # queue_1=LifoQueue() 
-    # f=open('I:\stocks.txt')    
-    # stocks=[line.strip() for line in f.readlines()]
-    # for i in range(len(stocks)):
-    #      queue_1.put(stocks[i])
-    # data1=ts.get_realtime_quotes(dL[0:880])
-    # df=self.pro.suspend(ts_code=dL[0:880])    
+  def test(self):    
     print('dt')
     return 
      

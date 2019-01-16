@@ -3,8 +3,7 @@
 import time,datetime
 import os
 import sched
-import stockFunction
- 
+import stockFunction 
  
 # 初始化sched模块的scheduler类
 # 第一个参数是一个可以返回时间戳的函数，第二个参数可以在定时未到达之前阻塞。
@@ -40,10 +39,10 @@ if __name__ == '__main__':
     print(now)
     
     now=datetime.datetime.now()    
-    schedOpenTime0=datetime.datetime(year,month,day,8)    #设置开盘初始化时间，当天8:00
-    schedOpenTime1=datetime.datetime(year,month,day+1,8)  #设置开盘初始化时间次日8:00
-    schedKdayCloseTime0=datetime.datetime(year,month,day,21,35)    #设置日线收盘时间，当天16:30
-    schedKdayCloseTime1=datetime.datetime(year,month,day+1,21,35)    #设置日线收盘时间，次日16:30
+    schedOpenTime0=datetime.datetime(year,month,day,8,00)    #设置开盘初始化时间，当天8:00
+    schedOpenTime1=datetime.datetime(year,month,day+1,8,00)  #设置开盘初始化时间次日8:00
+    schedKdayCloseTime0=datetime.datetime(year,month,day,16,30)    #设置日线收盘时间，当天16:30
+    schedKdayCloseTime1=datetime.datetime(year,month,day+1,16,30)    #设置日线收盘时间，次日16:30
 
     if now>schedOpenTime0 :
       incOpen=(schedOpenTime1-now).seconds     #启动开盘时间
@@ -56,6 +55,6 @@ if __name__ == '__main__':
       incKdayClose=(schedKdayCloseTime0-now).seconds         
 
     mskday = stockFunction.MSSQL(host="192.168.151.213", user="toshare1", pwd="toshare1", db="kday_qfq",myOrms="mysql")  
-    # mskday.MarketOpen()
-    ontimer(incOpen,incKdayClose)
+    mskday.MarketOpen()
+    ontimer(incOpen,incKdayClose) # incOpen：开盘初始化 incKdayClose：日线收盘作业
     
