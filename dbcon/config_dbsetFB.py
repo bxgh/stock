@@ -2,7 +2,7 @@ from dbcon import datasetWin
 import configparser
 import base64
 import pymssql,pymysql
-import tkinter.messagebox #弹窗库
+# import tkinter.messagebox #弹窗库
 
 #config文件配置数据库连接
 class databaseSetWindow(datasetWin.databaseSet): 
@@ -80,16 +80,18 @@ class databaseSetWindow(datasetWin.databaseSet):
     if mysqlormssql=='mssql':
      try:
        self.connect=pymssql.connect(host=host,user=user,password=pwd,database=db,charset='utf8')        
-       tkinter.messagebox.showinfo('提示','数据库连接成功。')
+      #  tkinter.messagebox.showinfo('提示','数据库连接成功。')
      except Exception as e:
-       tkinter.messagebox.showwarning('提示','数据库连接失败。')
+      #  tkinter.messagebox.showwarning('提示','数据库连接失败。')
+       pass
         
     if mysqlormssql=='mysql':     
      try:
        connect=pymysql.connect(host=host,port=port,user=user,password=pwd,database=db,charset='utf8')       
-       tkinter.messagebox.showinfo('提示','数据库连接成功。')
+      #  tkinter.messagebox.showinfo('提示','数据库连接成功。')
      except Exception as e:
-       tkinter.messagebox.showwarning('提示','数据库连接失败。')     
+      #  tkinter.messagebox.showwarning('提示','数据库连接失败。')     
+      pass
         
 
   def dbsetWinClose( self, event ):
