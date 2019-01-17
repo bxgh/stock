@@ -81,6 +81,7 @@ class databaseSetWindow(datasetWin.databaseSet):
        self.connect=pymssql.connect(host=host,user=user,password=pwd,database=db,charset='utf8')        
       #  tkinter.messagebox.showinfo('提示','数据库连接成功。')
      except Exception as e:
+       pass
       #  tkinter.messagebox.showwarning('提示','数据库连接失败。')
         
     if mysqlormssql=='mysql':     
@@ -88,6 +89,7 @@ class databaseSetWindow(datasetWin.databaseSet):
        connect=pymysql.connect(host=host,port=port,user=user,password=pwd,database=db,charset='utf8')       
       #  tkinter.messagebox.showinfo('提示','数据库连接成功。')
      except Exception as e:
+      pass 
       #  tkinter.messagebox.showwarning('提示','数据库连接失败。')     
         
 
