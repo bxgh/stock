@@ -1,7 +1,18 @@
-import baseFunction,stockFunction
-import time 
+# -*- coding:utf-8 -*-
+# use sched to timing
+import time,datetime
+import os
+import sched
+from winfenbi import fenbiFunction
 
-now = time.localtime(time.time())      
-today=time.strftime("%Y%m%d", now)
-mskday = stockFunction.MSSQL(host="192.168.151.213", user="toshare1", pwd="toshare1", db="kday_qfq",myOrms="mysql")  
-mskday.kday_close(today)
+t = time.localtime(time.time())  
+today = time.strftime("%Y%m%d", t)         
+StrIMSt = time.strftime("%H:%M:%S", t)  
+
+
+fbFunc=fenbiFunction.FenBi()
+ftp = fbFunc.baseFunc.ftpconnect("down.licai668.cn", "wwsa518", "ww190103emp")#分笔全息数据Ftp账户 
+fbFunc.nowtime = StrIMSt
+ftpFileName='zbi_'+today+'.rar'                      #大富翁全息分笔数据ftp服务器端当日下载文件名
+localFileName=fbFunc.fbqx_ftpdir+'/' +ftpFileName    #本地路径和文件名   
+fbFunc.baseFunc.downloadfile(ftp, ftpFileName,localFileName)  #下载全息分笔数据

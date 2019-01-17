@@ -17,11 +17,9 @@ from queue import LifoQueue
 import queue
 import threading
 import random
-import basewin
 import timeit
 import baseFunction
 import configparser
-import main_win
 
 class FenBi:
   def __init__(self):   
@@ -56,7 +54,7 @@ class FenBi:
      #代码范围
      self.fbqx_dmscope=conf.get('dmScope','fbqx')
      self.fbqx_onTimer=conf.get('onTimer','fbqx')
-     self.onTimer_isFbqxFtpDown=conf.get('onTimer','isfbqxftpdown ')
+     self.onTimer_isFbqxFtpDown=conf.get('onTimer','isfbqxftpdown')
 
      self.baseFunc = baseFunction.baseFunc(host=host,port=port, user=user, pwd=pwd, db=db,myOrms=mysqlormssql)   
      
@@ -74,42 +72,47 @@ class FenBi:
      self.extracted=0       #分笔文件是否已经解压缩标志
      self.iscsvTodbf=0      #判断csv是否已经入库
   
-  def MarketOpen(self):   #初始化数据，每日执行。
+  def MarketOpen(self):   #初始化数据，每日执行。FbDownQxftp.py
     self.fbqxDownloading=0 #初始化当日分笔全息数据下载标志，是否正在下载
-    self.fbqxDownloaded=1  #初始化当日分笔全息数据下载标志，是否已经下载完毕
-    self.extracted=1       #初始化下载后的分笔文件是否已经解压缩
+    self.fbqxDownloaded=0  #初始化当日分笔全息数据下载标志，是否已经下载完毕
+    self.extracted=0       #初始化下载后的分笔文件是否已经解压缩
     self.iscsvTodbf=0             #判断csv是否已经入库
 
-  def MarketClose(self,closeDay): #大富翁全息分笔数据ftp下载     
+  def MarketClose(self,closeDay): #大富翁全息分笔数据ftp下载    FbDownQxftp.py 
     ftpFileName='zbi_'+closeDay+'.rar'                      #ftp服务器端当日下载文件名
-    localFileName=self.fbqx_ftpdir+'/' +ftpFileName           #下载到本地路径和文件名    
-
+    localFileName=self.fbqx_ftpdir+'/' +ftpFileName           #下载到本地路径和文件名        
     #下载大富翁分笔全息数据，rar文件    
-    if self.fbqxDownloaded==0 :        #全息分笔文件是否下载完毕    
-        if self.fbqxDownloading==0 :     #是否正在下载
-          self.fbqxDownloading=1
-          try:
-            ftp = self.baseFunc.ftpconnect("down.licai668.cn", "wwsa518", "ww190103emp")  #分笔全息数据Ftp账户 
-            self.baseFunc.downloadfile(ftp, ftpFileName,localFileName )
-            self.fbqxDownloaded=1 
-            ftp.quit() 
-          except:
-            self.fbqxDownloading=0 
-            time.sleep(300)    
-    else:                                #下载完毕后解压缩文件到目标文件夹     
-        if self.extracted==0:  #没有解压文件
-            ftpFileName='zbi_'+closeDay+'.rar'
-            rarFile=self.fbqx_ftpdir+'/' +ftpFileName
-            destDir=self.fbqx_ftpdir+'/csv'
-            destFileDir=destDir+'/'+closeDay
-            self.baseFunc.mkdir(destDir)
-            self.baseFunc.mkdir(destFileDir)
-            if os.path.exists(rarFile) and not os.listdir(destFileDir):     #判断当日下载文件是否存在，当日解压缩文件夹是否为空       
-             try:
-                self.baseFunc.extrRarFile(rarFile,destDir)
-                self.extracted=1
-             except:
-                shutil.rmtree(destFileDir)              
+    while True:
+      if self.fbqxDownloaded==0 :        #全息分笔文件是否下载完毕    
+          if self.fbqxDownloading==0 :     #是否正在下载
+            self.fbqxDownloading=1
+            try:
+              # print('ftp is download')
+              ftp = self.baseFunc.ftpconnect("down.licai668.cn", "wwsa518", "ww190103emp")  #分笔全息数据Ftp账户 
+              self.baseFunc.downloadfile(ftp, ftpFileName,localFileName )              
+              ftp.quit() 
+              self.fbqxDownloaded=1 
+            except:
+              self.fbqxDownloading=0
+              # print('ftp is not download') 
+              time.sleep(300)    
+      else:                                #下载完毕后解压缩文件到目标文件夹     
+          if self.extracted==0:  #没有解压文件
+              ftpFileName='zbi_'+closeDay+'.rar'
+              rarFile=self.fbqx_ftpdir+'/' +ftpFileName
+              destDir=self.fbqx_ftpdir+'/csv'
+              destFileDir=destDir+'/'+closeDay
+              self.baseFunc.mkdir(destDir)
+              self.baseFunc.mkdir(destFileDir)
+              if os.path.exists(rarFile) and not os.listdir(destFileDir):     #判断当日下载文件是否存在，当日解压缩文件夹是否为空       
+                try:
+                    # print('ftp is  extracted') 
+                    self.baseFunc.extrRarFile(rarFile,destDir)
+                    self.extracted=1
+                    break                  #解压完后退出
+                except:
+                    shutil.rmtree(destFileDir)   
+    # print('is ok!')                         
 
   def extrRar(self):
       self.baseFunc.allKdayDir='I:\\BaiduNetdiskDownload\\fenbi2018\\'
@@ -715,7 +718,7 @@ class FenBi:
     # print(workQueue.get())    
     # print(tempQueue.qsize())    
     # print(self.baseFunc.getTscodeQueue().qsize())
-    self.fbqxDownloaded=1
+    print('ok')
 
   def testOntime(self):    
     stcodes=self.baseFunc.stockBasic    

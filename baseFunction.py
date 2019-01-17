@@ -575,6 +575,7 @@ class baseFunc:
         pass
         return False
 
+  #连接ftp服务器
   def ftpconnect(self,host, username, password):
     ftp = FTP()
     # ftp.set_debuglevel(2)
