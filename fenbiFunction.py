@@ -1,3 +1,4 @@
+# -*- coding:utf-8 -*-
 import time
 from datetime import datetime as dt
 import urllib.request
@@ -723,48 +724,62 @@ class FenBi:
   def testOntime(self):    
     stcodes=self.baseFunc.stockBasic    
     stocksList=stcodes['ts_code'].tolist()
-    stocksList=['600000.SH','600601.SH','601388.SH','601857.SH']    
+    # stocksList=['600000.SH','600601.SH','601388.SH','601857.SH']   
+    stocksList=['601388.SH']   
     for stcodes in stocksList: 
         stcodes=self.baseFunc.tscodeTran(stcodes)       
-        self.fbOntimeQueue.put([stcodes,0], True, 2) 
-    print(self.fbOntimeQueue.qsize())          
+        self.fbOntimeQueue.put([stcodes,0,0], True, 2) 
+    # print(self.fbOntimeQueue.qsize())          
     while not self.fbOntimeQueue.empty() and self.nowtime <'15:30' :
       content=self.fbOntimeQueue.get()
       tscode=content[0]      
       page=content[1]
-      print(tscode,' ',page)
-      page=self.getQQFbOntime(tscode,page)
+      fbId=content[2]
+      print('738',tscode,' ',page,fbId)
+      page=self.getQQFbOntime(tscode,page,fbId)
       # print(tscode,' ',page)
       # workQueue.put([tscode,page], True, 2)  
-      print('3 ',self.fbOntimeQueue.qsize())     
+      # print('3 ',self.fbOntimeQueue.qsize())     
     print('ok')  
     
-  def getQQFbOntime(self,tscode,page):#获取腾讯单只股票实时所有分笔数据（收盘处理）            
+  def getQQFbOntime(self,tscode,page,MaxId):#获取腾讯单只股票实时所有分笔数据（收盘处理）            
     fblist=[]
+    print('747',tscode,' ',page,MaxId)
     while True:
       rd=random.randint(0,10000)    
       url = 'http://stock.gtimg.cn/data/index.php?appn=detail&action=data&c='+tscode+'&p='+str(page)+'&'+str(rd)      
       content = self.getQQFbContent(url)  #获取腾讯股票实时分笔接口数据，单页数据每页70条   
       if len(content) != 0:
         df=self.dealQQFbContent(content) #处理腾讯股票实时分笔接口数据，转换为dataframe格式
-        fblist.append(df)
+        fblist.append(df)        
       else:
-        print(tscode,'  ',page)          
+        print('755',' ',tscode,'  ',page,MaxId)          
+        idmax=int(max(df['id']))        
+        page=page-1
+        print("757",' ',idmax,' ',page)
         break               
       page+=1
     try :
       result = pd.concat(fblist,ignore_index=True)   #合并所有页 
       result.insert(1, 'ts_code', tscode)    
-      result['trade_time']=self.baseFunc.getDatetime('-')+' '+result['trade_time']   
-      # print('result')
-      #导入股票列表到数据库      
+      result['trade_time']=self.baseFunc.getDatetime('-')+' '+result['trade_time']    
+      print(result)
+      print(MaxId)
+      if  MaxId >0 :
+       print(MaxId)
+       MaxId=MaxId-10
+       result[result['id']>MaxId]
+       print(result)
+      #导入股票列表到数据库   
       engineListAppend=self.baseFunc.engineListAppend
       result.to_sql('fenbi_'+tscode,engineListAppend,if_exists='append',index=False,chunksize=1000)  
     except:
       pass
-    print('1 ',self.fbOntimeQueue.qsize()) 
-    self.fbOntimeQueue.put([tscode,page-1], True, 2)   
-    print('2 ',self.fbOntimeQueue.qsize()) 
+    
+    # print('1 ',self.fbOntimeQueue.qsize()) 
+    print('775',page,' ',idmax)
+    self.fbOntimeQueue.put([tscode,page,idmax], True, 2)   
+    # print('2 ',self.fbOntimeQueue.qsize()) 
     return page    
 
   def threadQQonTime(self): #腾讯分笔数据实时下载数据

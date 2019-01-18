@@ -16,6 +16,7 @@ from ftplib import FTP
 import random
 import basewin
 import timeit
+import configparser
 
 
 # con = create_engine('mssql+pyodbc://username:password@myhost:port/databasename?driver=SQL+Server+Native+Client+10.0')
@@ -44,7 +45,11 @@ class baseFunc:
     self.stockBasic = self.pro.stock_basic(exchange='',fields='ts_code,symbol,name,area,industry,fullname,enname,market,exchange,curr_type,list_status,list_date,delist_date,is_hs')  
     self.isNotTradeDay()                #获取是否交易日
     self.getTrade_cal()                 #初始化交易日期队列、股票代码队列
-    self.api = ts.pro_api('38bb3cd1b6af2d75a7d7e506db8fd60354168642b400fa2104af81c5')    
+    self.api = ts.pro_api('38bb3cd1b6af2d75a7d7e506db8fd60354168642b400fa2104af81c5')   
+
+    conf = configparser.ConfigParser()
+    conf.read('config.ini')  
+    self.osSystem=conf.get('workDir','osSystem')
     
   def log(self):
         ''' 日志功能函数'''
@@ -68,10 +73,14 @@ class baseFunc:
       return taday  
   
   def extrRarFile(self,rarFile,destDir):  #解压缩文件
-    folder_name=r"C:\\Program Files\\7-Zip" #7z.exe位置    
-    os.chdir(folder_name)    
-    cmd = '7z.exe x "{}" -o{} -aos -r'.format(rarFile,destDir)
-    os.system(cmd)
+    if self.osSystem=='Windows' :
+      folder_name=r"C:\\Program Files\\7-Zip" #7z.exe位置    
+      os.chdir(folder_name)    
+      cmd = '7z.exe x "{}" -o{} -aos -r'.format(rarFile,destDir)
+      os.system(cmd)
+    if self.osSystem=='Centos'  :
+      cmd = 'rar x '+ rarFile+ ' '+destDir
+      os.system(cmd)
   
   def tscodeTran(self,codets):  #000001.SZ to sz000001
     tscode=codets[-2:].lower()+codets[0:6]

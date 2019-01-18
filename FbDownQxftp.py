@@ -67,7 +67,7 @@ class FenBi:
      self.today=time.strftime("%Y%m%d", t)  
      self.today_=time.strftime("%Y-%m-%d", t)  
      self.nowtime = time.strftime("%H:%M:%S", t) 
-     self.fbqxDownloaded=0 #全息分笔数据下载标志，是否已经下载完毕
+     self.fbqxDownloaded=1 #全息分笔数据下载标志，是否已经下载完毕
      self.fbqxDownloading=0 #全息分笔数据下载标志，是否正在下载
      self.extracted=0       #分笔文件是否已经解压缩标志
      self.iscsvTodbf=0      #判断csv是否已经入库
