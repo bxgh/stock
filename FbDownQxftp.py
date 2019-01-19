@@ -22,39 +22,39 @@ import baseFunction
 import configparser
 
 class FenBi:
-  def __init__(self):   
+  def __init__(self,timerType):   
     #  self.txtFenbiFileDir=conf.get("workDir", "txtFenbiFileDir")
     #  print(self.txtFenbiFileDir)
      #获取config配置文件     
-     conf = configparser.ConfigParser()
-     conf.read('config.ini') 
+     self.conf = configparser.ConfigParser()
+     self.conf.read('config.ini') 
      #数据库连接
-     host=conf.get('database','host_fenbi')
+     host=self.conf.get('database','host_fenbi')
      host=base64.decodestring(bytes(host, 'utf-8')) 
      host= str(host, encoding = "utf-8")
-     port=conf.get('database','port_fenbi')
+     port=self.conf.get('database','port_fenbi')
      port=base64.decodestring(bytes(port, 'utf-8')) 
      port= str(port, encoding = "utf-8")
-     user=conf.get('database','user_fenbi')
+     user=self.conf.get('database','user_fenbi')
      user=base64.decodestring(bytes(user, 'utf-8'))     #解密     
      user= str(user, encoding = "utf-8")  
-     pwd=conf.get('database','pwd_fenbi')
+     pwd=self.conf.get('database','pwd_fenbi')
      pwd=base64.decodestring(bytes(pwd, 'utf-8'))
      pwd= str(pwd, encoding = "utf-8")
-     db=conf.get('database','db_fenbi')
+     db=self.conf.get('database','db_fenbi')
      db=base64.decodestring(bytes(db, 'utf-8'))
      db= str(db, encoding = "utf-8")
-     mysqlormssql=conf.get('database','msormy_fenbi')
+     mysqlormssql=self.conf.get('database','msormy_fenbi')
      mysqlormssql=base64.decodestring(bytes(mysqlormssql, 'utf-8'))
      mysqlormssql= str(mysqlormssql, encoding = "utf-8")
      #文件目录
-     self.fbtxt_todaydir=conf.get('workDir','fb_txtFileTodayDir')
-     self.hd5DestDir=conf.get('workDir','fb_hd5DestDir')  
-     self.fbqx_ftpdir=conf.get('workDir','fbqx_ftpdir') 
+     self.fbtxt_todaydir=self.conf.get('workDir','fb_txtFileTodayDir')
+     self.hd5DestDir=self.conf.get('workDir','fb_hd5DestDir')  
+     self.fbqx_ftpdir=self.conf.get('workDir','fbqx_ftpdir') 
      #代码范围
-     self.fbqx_dmscope=conf.get('dmScope','fbqx')
-     self.fbqx_onTimer=conf.get('onTimer','fbqx')
-     self.onTimer_isFbqxFtpDown=conf.get('onTimer','isfbqxftpdown')
+     self.fbqx_dmscope=self.conf.get('dmScope','fbqx')
+     self.fbqx_onTimer=self.conf.get('onTimer','fbqx')
+     self.onTimer_isFbqxFtpDown=self.conf.get('onTimer','isfbqxftpdown')
 
      self.baseFunc = baseFunction.baseFunc(host=host,port=port, user=user, pwd=pwd, db=db,myOrms=mysqlormssql)   
      
@@ -67,16 +67,24 @@ class FenBi:
      self.today=time.strftime("%Y%m%d", t)  
      self.today_=time.strftime("%Y-%m-%d", t)  
      self.nowtime = time.strftime("%H:%M:%S", t) 
-     self.fbqxDownloaded=1 #全息分笔数据下载标志，是否已经下载完毕
+     self.fbqxDownloaded=0 #全息分笔数据下载标志，是否已经下载完毕
      self.fbqxDownloading=0 #全息分笔数据下载标志，是否正在下载
      self.extracted=0       #分笔文件是否已经解压缩标志
      self.iscsvTodbf=0      #判断csv是否已经入库
+     self.timerType=timerType
   
   def MarketOpen(self):   #初始化数据，每日执行。FbDownQxftp.py
     self.fbqxDownloading=0 #初始化当日分笔全息数据下载标志，是否正在下载
     self.fbqxDownloaded=0  #初始化当日分笔全息数据下载标志，是否已经下载完毕
     self.extracted=0       #初始化下载后的分笔文件是否已经解压缩
     self.iscsvTodbf=0             #判断csv是否已经入库
+    
+    t = time.localtime(time.time()) 
+    closeDay=time.strftime("%Y%m%d", t) 
+    closeDay_=time.strftime("%Y-%m-%d", t)     
+    self.conf.set(self.timerType,'closeDay',closeDay)  #初始化收盘日期存入config.ini 格式：20190118
+    self.conf.set(self.timerType,'closeDay_',closeDay_)#初始化收盘日期存入config.ini 格式：2019-01-18
+    self.conf.write(open("config.ini", "w"))
 
   def MarketClose(self,closeDay): #大富翁全息分笔数据ftp下载    FbDownQxftp.py 
     ftpFileName='zbi_'+closeDay+'.rar'                      #ftp服务器端当日下载文件名
@@ -108,7 +116,10 @@ class FenBi:
                 try:
                     # print('ftp is  extracted') 
                     self.baseFunc.extrRarFile(rarFile,destDir)
-                    self.extracted=1
+                    self.extracted=1                    
+                    for filename in os.listdir(destFileDir): #fbqxFtp\\csv\\20190117
+                       tscode=filename[0:8].lower()
+                       self.baseFunc.createTable('fbqx_',tscode)        #建表               
                     break                  #解压完后退出
                 except:
                     shutil.rmtree(destFileDir)   

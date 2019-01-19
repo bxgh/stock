@@ -201,7 +201,9 @@ class baseFunc:
      exesql = "CALL `create_table`("+ "'"+tableKind+"'" +","+"'"+tableName+"'" +");"         
     if self.mysqlormssql=='mssql':
       if tableKind=='fenbi_':
-        exesql = "exec createTableFb "+ "'"+tableKind+"'" +","+"'"+tableName+"'"        
+        exesql = "exec createTableFb "+ "'"+tableKind+"'" +","+"'"+tableName+"'"    
+      if tableKind=='fbqx_':
+        exesql = "exec createTableFbQx "+ "'"+tableKind+"'" +","+"'"+tableName+"'"       
     curCreate=self.GetConnect()               
     curCreate.execute(exesql)
     self.connect.commit()

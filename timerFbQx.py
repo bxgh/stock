@@ -6,10 +6,10 @@ import datetime,time,os,shutil
 from datetime import datetime as dt
 
 schedule = sched.scheduler(time.time, time.sleep)
+timerType='fbqx'    ######设置任务类型，对应config.ini节点，读取相关设置
 # 被周期性调度触发的函数
-def execute_Close(inc): #循环收盘任务
-    closeNow = time.localtime(time.time()) 
-    closeDay=time.strftime("%Y%m%d", closeNow)     
+def execute_Close(inc): #循环收盘任务 
+    closeDay=ExcFunc.conf.get(timerType,'closeDay')             
     ExcFunc.MarketClose(closeDay)
     schedule.enter(86400, 0, execute_Close, (86400,))  # 86400=24小时
 
@@ -26,17 +26,24 @@ def ontimer(incOpen,incClose):  #任务调度
     schedule.run() 
 
 if __name__ == '__main__':
-    now = time.localtime(time.time())  
-    year = int(time.strftime("%Y", now))  
-    month = int(time.strftime("%m", now)) 
-    day = int(time.strftime("%d", now))
-    today=time.strftime("%Y%m%d", now) 
-    now=datetime.datetime.now()    
+    ExcFunc=FbDownQxftp.FenBi(timerType)    #分笔数据实例
+    getHisdata=ExcFunc.conf.get(timerType,'getHisdata') 
+    today = ExcFunc.conf.get(timerType,'closeDay')   #config.in读取收盘日期
+    year = int(today[0:4])  
+    month = int(today[4:6]) 
+    day = int(today[6:8])   
 
-    schedOpenTime0=datetime.datetime(year,month,day,8,00)    #设置开盘初始化时间，当天8:00
-    schedOpenTime1=datetime.datetime(year,month,day+1,8,00)  #设置开盘初始化时间次日8:00
-    schedCloseTime0=datetime.datetime(year,month,day,16,15)    #设置大富翁全息数据ftp下载时间，当天16:15
-    schedCloseTime1=datetime.datetime(year,month,day+1,16,15)    #设置次日ftp下载时间，次日16:15
+    openTime= ExcFunc.conf.get(timerType,'marketOpenTime')  #config.in读取开盘时间
+    closeTime=ExcFunc.conf.get(timerType,'marketCloseTime') #config.in读取收盘时间      
+    openTimehh=int(openTime[0:2])        #config.in读取开盘小时
+    openTimemm=int(openTime[2:4])        #config.in读取开盘分钟
+    closeTimehh=int(closeTime[0:2])
+    closeTimemm=int(closeTime[2:4])    
+    now=datetime.datetime.now()         #程序运行当前时间
+    schedOpenTime0=datetime.datetime(year,month,day,openTimehh,openTimemm)    #设置开盘初始化时间，当天8:00
+    schedOpenTime1=datetime.datetime(year,month,day+1,openTimehh,openTimemm)  #设置开盘初始化时间次日8:00
+    schedCloseTime0=datetime.datetime(year,month,day,closeTimehh,closeTimemm)    #设置大富翁全息数据ftp下载时间，当天16:15
+    schedCloseTime1=datetime.datetime(year,month,day+1,closeTimehh,closeTimemm)    #设置次日ftp下载时间，次日16:15
 
     if now>schedOpenTime0 :
         incOpen=(schedOpenTime1-now).seconds     #启动开盘时间
@@ -44,11 +51,15 @@ if __name__ == '__main__':
         incOpen=(schedOpenTime0-now).seconds
 
     if now>schedCloseTime0 :
-        incClose=(schedCloseTime1-now).seconds #启动日线收盘时间
+        incClose=(schedCloseTime1-now).seconds   #启动收盘时间
     else :
         incClose=(schedCloseTime0-now).seconds 
+    
+    if ExcFunc.baseFunc.isTradeDay==1 and getHisdata=='0' : #是否交易日
+        ExcFunc.MarketOpen()                       
+        ontimer(incOpen,incClose)   # incOpen：开盘初始化 incClose：收盘作业
+        
+    if getHisdata =='1': #获取历史数据
+      closeDay=ExcFunc.conf.get(timerType,'closeDay')      #config.ini获取历史数据日期       
+      ExcFunc.MarketClose(closeDay)
 
-    ExcFunc=FbDownQxftp.FenBi()    #分笔数据实例
-    if ExcFunc.baseFunc.isTradeDay==1  : #是否交易日
-        ExcFunc.MarketOpen()                
-        ontimer(incOpen,incClose) # incOpen：开盘初始化 incKdayClose：日线收盘作业
