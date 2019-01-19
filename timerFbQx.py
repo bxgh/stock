@@ -61,5 +61,10 @@ if __name__ == '__main__':
         
     if getHisdata =='1': #获取历史数据
       closeDay=ExcFunc.conf.get(timerType,'closeDay')      #config.ini获取历史数据日期       
-      ExcFunc.MarketClose(closeDay)
+      df=ExcFunc.baseFunc.pro.query('trade_cal', start_date=closeDay, end_date=closeDay)
+      isTradeDay=int(df.iloc[0,2])
+      if isTradeDay==1:
+        ExcFunc.MarketClose(closeDay)
+      else:
+        print(closeDay,'is not trade day!')  
 
