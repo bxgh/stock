@@ -56,6 +56,7 @@ class FenBi:
      self.fbqx_onTimer=self.conf.get('onTimer','fbqx')
      self.onTimer_isFbqxFtpDown=self.conf.get('onTimer','isfbqxftpdown')
 
+
      self.baseFunc = baseFunction.baseFunc(host=host,port=port, user=user, pwd=pwd, db=db,myOrms=mysqlormssql)   
      
      self.fenbiQueue=self.baseFunc.stockBasic_queue
@@ -86,44 +87,74 @@ class FenBi:
     self.conf.set(self.timerType,'closeDay_',closeDay_)#初始化收盘日期存入config.ini 格式：2019-01-18
     self.conf.write(open("config.ini", "w"))
 
-  def MarketClose(self,closeDay): #大富翁全息分笔数据ftp下载    FbDownQxftp.py 
-    ftpFileName='zbi_'+closeDay+'.rar'                      #ftp服务器端当日下载文件名
-    localFileName=self.fbqx_ftpdir+'/' +ftpFileName           #下载到本地路径和文件名        
-    #下载大富翁分笔全息数据，rar文件    
-    while True:
-      if self.fbqxDownloaded==0 :        #全息分笔文件是否下载完毕    
-          if self.fbqxDownloading==0 :     #是否正在下载
-            self.fbqxDownloading=1
-            try:
-              # print('ftp is download')
-              ftp = self.baseFunc.ftpconnect("down.licai668.cn", "wwsa518", "ww190103emp")  #分笔全息数据Ftp账户 
-              self.baseFunc.downloadfile(ftp, ftpFileName,localFileName )              
-              ftp.quit() 
-              self.fbqxDownloaded=1 
-            except:
-              self.fbqxDownloading=0
-              # print('ftp is not download') 
-              time.sleep(300)    
-      else:                                #下载完毕后解压缩文件到目标文件夹     
-          if self.extracted==0:  #没有解压文件
-              ftpFileName='zbi_'+closeDay+'.rar'
-              rarFile=self.fbqx_ftpdir+'/' +ftpFileName
-              destDir=self.fbqx_ftpdir+'/csv'
-              destFileDir=destDir+'/'+closeDay
-              self.baseFunc.mkdir(destDir)
-              self.baseFunc.mkdir(destFileDir)
-              if os.path.exists(rarFile) and not os.listdir(destFileDir):     #判断当日下载文件是否存在，当日解压缩文件夹是否为空       
-                try:
-                    # print('ftp is  extracted') 
-                    self.baseFunc.extrRarFile(rarFile,destDir)
-                    self.extracted=1                    
-                    for filename in os.listdir(destFileDir): #fbqxFtp\\csv\\20190117
-                       tscode=filename[0:8].lower()
-                       self.baseFunc.createTable('fbqx_',tscode)        #建表               
-                    break                  #解压完后退出
-                except:
-                    shutil.rmtree(destFileDir)   
-    # print('is ok!')                         
+  def MarketClose(self,closeDay): #大富翁全息分笔数据ftp下载    FbDownQxftp.py     
+    start=dt.now()    
+    exitFlag = 0
+    treadsCounts=40
+    threadList=[]
+    csvFileList=[]    
+    treadsCounts=int(self.conf.get('fbqx','csvToDbfThrs'))
+
+    class myThread (threading.Thread):
+      def __init__(self, threadID, name, q):
+          threading.Thread.__init__(self)
+          self.threadID = threadID
+          self.name = name
+          self.q = q
+      def run(self):
+          print ("开启线程：" + self.name)
+          process_data(self.name, self.q)
+          print ("退出线程：" + self.name)
+  
+    def process_data(threadName, q):  #供线程使用的过程
+        while not exitFlag:
+            for filename in q:
+                txt_file=filerDir+filename               
+                self.QxCsvToHd5(txt_file)
+                print ("%s processing %s" % (threadName, txt_file))          
+            time.sleep(1) 
+
+    filerDir=self.fbqx_ftpdir+'/csv/' +closeDay+'/'           #下载到本地路径和文件名        
+    fileList=os.listdir(filerDir)
+    dealListQueue=queue.Queue()
+    for filename in fileList:      
+      dealListQueue.put(filename)
+    fileTotal=dealListQueue.qsize()
+    
+    threadFileCounts=int(fileTotal/treadsCounts)
+
+    for x in range(treadsCounts):
+        csvFileList.append([])
+        threadList.append('Thread-'+str(x))
+        fileCount=0
+        while fileCount<threadFileCounts: 
+            filename= dealListQueue.get()                   
+            csvFileList[x].append(filename)
+            fileCount+=1
+    while not dealListQueue.empty():
+        filename= dealListQueue.get()
+        csvFileList[0].append(filename)
+
+    threads = []
+    threadID = 0
+
+    # 创建新线程
+    for tName in threadList:
+        thread = myThread(threadID, tName, csvFileList[threadID])
+        thread.start()
+        threads.append(thread)
+        threadID += 1
+
+    exitFlag = 1
+
+    # 等待所有线程完成
+    for t in threads:
+        t.join()
+    print ("退出主线程")
+
+    print(start)
+    print(dt.now())   
+                       
 
   def extrRar(self):
       self.baseFunc.allKdayDir='I:\\BaiduNetdiskDownload\\fenbi2018\\'
@@ -165,7 +196,7 @@ class FenBi:
             try:
              engineListAppend=self.baseFunc.engineListAppend
              data.to_sql(tscode,engineListAppend,if_exists='append',index=False,chunksize=1000)
-            #  os.remove(txt_file)
+             os.remove(txt_file)
             except:
              pass
 
