@@ -103,7 +103,7 @@ class FenBi:
           self.q = q
       def run(self):
           print ("开启线程：" + self.name)
-          process_data(self.name, self.q)
+          process_data(self.name, self.q)          
           print ("退出线程：" + self.name)
   
     def process_data(threadName, q):  #供线程使用的过程
@@ -143,13 +143,16 @@ class FenBi:
         thread = myThread(threadID, tName, csvFileList[threadID])
         thread.start()
         threads.append(thread)
+        print(threadID,len(csvFileList[threadID]))
         threadID += 1
-
+    
+    # print(len(threadList))
     exitFlag = 1
 
-    # 等待所有线程完成
+    # 等待所有线程完成    
     for t in threads:
         t.join()
+        
     print ("退出主线程")
 
     print(start)

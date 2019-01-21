@@ -1,4 +1,3 @@
-# -*- coding:utf-8 -*-
 import time
 from datetime import datetime as dt
 import urllib.request
@@ -23,39 +22,40 @@ import baseFunction
 import configparser
 
 class FenBi:
-  def __init__(self):   
+  def __init__(self,timerType):   
     #  self.txtFenbiFileDir=conf.get("workDir", "txtFenbiFileDir")
     #  print(self.txtFenbiFileDir)
      #获取config配置文件     
-     conf = configparser.ConfigParser()
-     conf.read('config.ini') 
+     self.conf = configparser.ConfigParser()
+     self.conf.read('config.ini') 
      #数据库连接
-     host=conf.get('database','host_fenbi')
+     host=self.conf.get('database','host_fenbi')
      host=base64.decodestring(bytes(host, 'utf-8')) 
      host= str(host, encoding = "utf-8")
-     port=conf.get('database','port_fenbi')
+     port=self.conf.get('database','port_fenbi')
      port=base64.decodestring(bytes(port, 'utf-8')) 
      port= str(port, encoding = "utf-8")
-     user=conf.get('database','user_fenbi')
+     user=self.conf.get('database','user_fenbi')
      user=base64.decodestring(bytes(user, 'utf-8'))     #解密     
      user= str(user, encoding = "utf-8")  
-     pwd=conf.get('database','pwd_fenbi')
+     pwd=self.conf.get('database','pwd_fenbi')
      pwd=base64.decodestring(bytes(pwd, 'utf-8'))
      pwd= str(pwd, encoding = "utf-8")
-     db=conf.get('database','db_fenbi')
+     db=self.conf.get('database','db_fenbi')
      db=base64.decodestring(bytes(db, 'utf-8'))
      db= str(db, encoding = "utf-8")
-     mysqlormssql=conf.get('database','msormy_fenbi')
+     mysqlormssql=self.conf.get('database','msormy_fenbi')
      mysqlormssql=base64.decodestring(bytes(mysqlormssql, 'utf-8'))
      mysqlormssql= str(mysqlormssql, encoding = "utf-8")
      #文件目录
-     self.fbtxt_todaydir=conf.get('workDir','fb_txtFileTodayDir')
-     self.hd5DestDir=conf.get('workDir','fb_hd5DestDir')  
-     self.fbqx_ftpdir=conf.get('workDir','fbqx_ftpdir') 
+     self.fbtxt_todaydir=self.conf.get('workDir','fb_txtFileTodayDir')
+     self.hd5DestDir=self.conf.get('workDir','fb_hd5DestDir')  
+     self.fbqx_ftpdir=self.conf.get('workDir','fbqx_ftpdir') 
      #代码范围
-     self.fbqx_dmscope=conf.get('dmScope','fbqx')
-     self.fbqx_onTimer=conf.get('onTimer','fbqx')
-     self.onTimer_isFbqxFtpDown=conf.get('onTimer','isfbqxftpdown')
+     self.fbqx_dmscope=self.conf.get('dmScope','fbqx')
+     self.fbqx_onTimer=self.conf.get('onTimer','fbqx')
+     self.onTimer_isFbqxFtpDown=self.conf.get('onTimer','isfbqxftpdown')
+
 
      self.baseFunc = baseFunction.baseFunc(host=host,port=port, user=user, pwd=pwd, db=db,myOrms=mysqlormssql)   
      
@@ -72,49 +72,163 @@ class FenBi:
      self.fbqxDownloading=0 #全息分笔数据下载标志，是否正在下载
      self.extracted=0       #分笔文件是否已经解压缩标志
      self.iscsvTodbf=0      #判断csv是否已经入库
+     self.timerType=timerType
   
   def MarketOpen(self):   #初始化数据，每日执行。FbDownQxftp.py
     self.fbqxDownloading=0 #初始化当日分笔全息数据下载标志，是否正在下载
     self.fbqxDownloaded=0  #初始化当日分笔全息数据下载标志，是否已经下载完毕
     self.extracted=0       #初始化下载后的分笔文件是否已经解压缩
     self.iscsvTodbf=0             #判断csv是否已经入库
+    
+    t = time.localtime(time.time()) 
+    closeDay=time.strftime("%Y%m%d", t) 
+    closeDay_=time.strftime("%Y-%m-%d", t)     
+    self.conf.set(self.timerType,'closeDay',closeDay)  #初始化收盘日期存入config.ini 格式：20190118
+    self.conf.set(self.timerType,'closeDay_',closeDay_)#初始化收盘日期存入config.ini 格式：2019-01-18
+    self.conf.write(open("config.ini", "w"))
 
-  def MarketClose(self,closeDay): #大富翁全息分笔数据ftp下载    FbDownQxftp.py 
-    ftpFileName='zbi_'+closeDay+'.rar'                      #ftp服务器端当日下载文件名
-    localFileName=self.fbqx_ftpdir+'/' +ftpFileName           #下载到本地路径和文件名        
-    #下载大富翁分笔全息数据，rar文件    
+  def MarketClose(self,closeDay): #大富翁全息分笔数据ftp下载    FbDownQxftp.py     
+    start=dt.now()    
+    exitFlag = 0
+    treadsCounts=40
+    threadList=[]
+    csvFileList=[]  
+    stocksList=[]  
+    treadsCounts=int(self.conf.get('fbQQ','ontimergetThrs'))  #线程数
+
+    class myThread (threading.Thread):
+      def __init__(self, threadID, name, q):
+          threading.Thread.__init__(self)
+          self.threadID = threadID
+          self.name = name
+          self.q = q
+      def run(self):
+          print ("开启线程：" + self.name)
+          process_data(self.name, self.q)
+          print ("退出线程：" + self.name)
+  
+    def process_data(threadName, q):  #供线程使用的过程
+        self.fbOntimeQueue=q
+        while not exitFlag:                         
+            while not self.fbOntimeQueue.empty()  :
+                content=self.fbOntimeQueue.get()
+                tscode=content[0]      
+                page=content[1]
+                fbId=content[2]
+                # print('738',tscode,' ',page,fbId)
+                page=self.getQQFbOntime(tscode,page,fbId)
+                print ("%s processing %s" % (threadName, 'txt_file'))          
+            time.sleep(1) 
+    
+    dealListQueue=queue.Queue()
+    
+    stcodes=self.baseFunc.stockBasic      #处理线程使用的代码队列
+    stocksList=stcodes['ts_code'].tolist()
+    # stocksList=['600000.SH','600601.SH','601388.SH','601857.SH']   
+    # stocksList=['601388.SH']   
+    for stcodes in stocksList: 
+        stcodes=self.baseFunc.tscodeTran(stcodes)       
+        dealListQueue.put([stcodes,0,0], True, 2) 
+
+
+    fileTotal=dealListQueue.qsize()    
+    threadFileCounts=int(fileTotal/treadsCounts) #计算单线程代码数量
+
+    for x in range(treadsCounts):
+        csvFileList.append([])
+        threadList.append('Thread-'+str(x))
+        fileCount=0
+        while fileCount<threadFileCounts: 
+            filename= dealListQueue.get()  
+
+            csvFileList[x].append(filename)
+            fileCount+=1
+    while not dealListQueue.empty():
+        filename= dealListQueue.get()
+        csvFileList[0].append(filename)
+
+    threads = []
+    threadID = 0
+    
+    
+
+    # 创建新线程
+    for tName in threadList:
+        thread = myThread(threadID, tName, csvFileList[threadID])
+        thread.start()
+        threads.append(thread)
+        threadID += 1
+
+    exitFlag = 1
+
+    # 等待所有线程完成
+    for t in threads:
+        t.join()
+    print ("退出主线程")
+
+    # print(start)
+    # print(dt.now())   
+                       
+
+  def FbQQ_Ontime(self,fbOntimeQueue):    
+    # stcodes=self.baseFunc.stockBasic    
+    # stocksList=stcodes['ts_code'].tolist()
+    # # stocksList=['600000.SH','600601.SH','601388.SH','601857.SH']   
+    # stocksList=['601388.SH']   
+    # for stcodes in stocksList: 
+    #     stcodes=self.baseFunc.tscodeTran(stcodes)       
+    #     self.fbOntimeQueue.put([stcodes,0,0], True, 2) 
+    # print(self.fbOntimeQueue.qsize())          
+    while not self.fbOntimeQueue.empty() and self.nowtime <'15:30' :
+      content=self.fbOntimeQueue.get()
+      tscode=content[0]      
+      page=content[1]
+      fbId=content[2]
+      # print('738',tscode,' ',page,fbId)
+      page=self.getQQFbOntime(tscode,page,fbId)
+
+  def getQQFbOntime(self,tscode,page,MaxId):#获取腾讯单只股票实时所有分笔数据（收盘处理）            
+    fblist=[]
+    print('747',tscode,' ',page,MaxId)
     while True:
-      if self.fbqxDownloaded==0 :        #全息分笔文件是否下载完毕    
-          if self.fbqxDownloading==0 :     #是否正在下载
-            self.fbqxDownloading=1
-            try:
-              # print('ftp is download')
-              ftp = self.baseFunc.ftpconnect("down.licai668.cn", "wwsa518", "ww190103emp")  #分笔全息数据Ftp账户 
-              self.baseFunc.downloadfile(ftp, ftpFileName,localFileName )              
-              ftp.quit() 
-              self.fbqxDownloaded=1 
-            except:
-              self.fbqxDownloading=0
-              # print('ftp is not download') 
-              time.sleep(300)    
-      else:                                #下载完毕后解压缩文件到目标文件夹     
-          if self.extracted==0:  #没有解压文件
-              ftpFileName='zbi_'+closeDay+'.rar'
-              rarFile=self.fbqx_ftpdir+'/' +ftpFileName
-              destDir=self.fbqx_ftpdir+'/csv'
-              destFileDir=destDir+'/'+closeDay
-              self.baseFunc.mkdir(destDir)
-              self.baseFunc.mkdir(destFileDir)
-              if os.path.exists(rarFile) and not os.listdir(destFileDir):     #判断当日下载文件是否存在，当日解压缩文件夹是否为空       
-                try:
-                    # print('ftp is  extracted') 
-                    self.baseFunc.extrRarFile(rarFile,destDir)
-                    self.extracted=1
-                    break                  #解压完后退出
-                except:
-                    shutil.rmtree(destFileDir)   
-    # print('is ok!')                         
-
+      rd=random.randint(0,10000)    
+      url = 'http://stock.gtimg.cn/data/index.php?appn=detail&action=data&c='+tscode+'&p='+str(page)+'&'+str(rd)      
+      content = self.getQQFbContent(url)  #获取腾讯股票实时分笔接口数据，单页数据每页70条   
+      if len(content) != 0:
+        df=self.dealQQFbContent(content) #处理腾讯股票实时分笔接口数据，转换为dataframe格式
+        df["id"] = df["id"].astype("int")
+        fblist.append(df)        
+      else:
+        # print('756',' ',tscode,'  ',page,MaxId)          
+        idmax=max(df['id'])        
+        page=page-1
+        # print("759",' ',idmax,' ',page)
+        break               
+      page+=1
+    try :
+        result = pd.concat(fblist,ignore_index=True)   #合并所有页 
+        result.insert(1, 'ts_code', tscode)    
+        result['trade_time']=self.baseFunc.getDatetime('-')+' '+result['trade_time']    
+        # print(result)
+        # print(767,MaxId)
+        if  MaxId >0 :       
+          # MaxId=MaxId-10
+          # print(770,MaxId)
+          result=result[result['id']>MaxId]
+          # print(773,result)
+        #导入股票列表到数据库   
+        # print(774,result)
+        engineListAppend=self.baseFunc.engineListAppend
+        result.to_sql('fenbi_'+tscode,engineListAppend,if_exists='append',index=False,chunksize=1000)  
+    except:
+      pass
+    
+    # print('1 ',self.fbOntimeQueue.qsize()) 
+    # print('781',page,' ',idmax)
+    self.fbOntimeQueue.put([tscode,page,idmax], True, 2)   
+    # print('2 ',self.fbOntimeQueue.qsize()) 
+    return page        
+  
   def extrRar(self):
       self.baseFunc.allKdayDir='I:\\BaiduNetdiskDownload\\fenbi2018\\'
       self.baseFunc.getFileQueue()
@@ -145,16 +259,17 @@ class FenBi:
 
   def QxCsvToHd5(self,txt_file):     #大富翁全息分笔数据入库                   
           tscode=txt_file[-12:-4]       #SH603001   
-          tscode=tscode.lower()          
+          tscode=tscode.lower()    
+          today= txt_file[-21:-13]      
           if os.access(txt_file, os.R_OK):            
             data=pd.read_csv(txt_file)            
-            data['Time']=pd.to_datetime(self.today+data['Time'].astype(str).str.zfill(6), format='%Y%m%d%H%M%S')
+            data['Time']=pd.to_datetime(today+data['Time'].astype(str).str.zfill(6), format='%Y%m%d%H%M%S')
             data.insert(0, 'ts_code', tscode)
             del data['Mtime']             
             try:
              engineListAppend=self.baseFunc.engineListAppend
-             data.to_sql('fenbi_'+tscode,engineListAppend,if_exists='append',index=False,chunksize=1000)
-            #  os.remove(txt_file)
+             data.to_sql(tscode,engineListAppend,if_exists='append',index=False,chunksize=1000)
+             os.remove(txt_file)
             except:
              pass
 
@@ -203,6 +318,7 @@ class FenBi:
   def threadQxFbToDbf(self): #大富翁全息分笔数据收盘下载数据（全部下载完成需要6个小时）
     start=dt.now()    
     exitFlag = 0
+    treadsCounts=10
     # pblist=[]
     class myThread (threading.Thread):
       def __init__(self, threadID, name, q):
@@ -224,9 +340,12 @@ class FenBi:
               # queueLock.release()
               print ("%s processing %s" % (threadName, txt_file))          
           time.sleep(1) 
+
     threadList=[]
-    for x in range(20):
+    csvFileList=[]
+    for x in range(treadsCounts):
       threadList.append('Thread-'+str(x))
+      
     # threadList = ["Thread-1", "Thread-2", "Thread-3","Thread-4","Thread-5","Thread-6","Thread-7","Thread-8","Thread-9","Thread-10","Thread-11","Thread-12"]
     # nameList = ["One", "Two", "Three", "Four", "Five"]
     # queueLock = threading.Lock()
@@ -619,42 +738,7 @@ class FenBi:
         t.join()
     print ("退出主线程")
     print(start)
-    print(dt.now())
-
-  def test1(self):     
-     self.getQQFbOneAllPgToDbf('sh600000')
-     stockBasic_queue=self.baseFunc.stockBasic_queue #股票代码队列000001.SZ
-
-       
-    # tscode = 'sz000001'
-    # # dateObj = datetime.datetime(2018, 12, 28)
-    # # date =self.baseFunc.getDatetime('-')
-    # # date = date.strftime("%Y-%m-%d")
-    # date='2018-12-28'
-    # page = 1   
-    # pblist=pd.DataFrame(columns=['trade_time','price','updown','vol','amount','bs'])
-    # while page<10:
-    #           Url = 'http://market.finance.sina.com.cn/transHis.php?symbol=' + tscode + '&date=' + date + '&page=' + str(page)
-    #           print(Url)
-    #           html = self.getHtml(Url)
-    #           table = self.getTable(html)
-    #           if len(table) != 0:
-    #               tbody = self.getBody(table[0])
-    #               if len(tbody) == 0:
-    #                   print("结束")
-    #                   break
-    #               else:
-    #                   data=pd.DataFrame(tbody)
-    #                   print(data)
-    #                   pblist.append(data,ignore_index=True)                     
-    #                   print(pblist)
-                      
-    #           else:
-    #               print("当日无数据")
-    #               break
-    #           page += 1   
-    # pblist['trade_time']=date+' '+pblist['trade_time']     
-    # print(pblist)  
+    print(dt.now()) 
     
 
   def getQQFbContent(self,url):  #获取腾讯股票实时分笔接口数据
@@ -724,65 +808,21 @@ class FenBi:
   def testOntime(self):    
     stcodes=self.baseFunc.stockBasic    
     stocksList=stcodes['ts_code'].tolist()
-    # stocksList=['600000.SH','600601.SH','601388.SH','601857.SH']   
-    stocksList=['601388.SH']   
+    stocksList=['600000.SH','600601.SH','601388.SH','601857.SH']    
     for stcodes in stocksList: 
         stcodes=self.baseFunc.tscodeTran(stcodes)       
-        self.fbOntimeQueue.put([stcodes,0,0], True, 2) 
-    # print(self.fbOntimeQueue.qsize())          
+        self.fbOntimeQueue.put([stcodes,0], True, 2) 
+    print(self.fbOntimeQueue.qsize())          
     while not self.fbOntimeQueue.empty() and self.nowtime <'15:30' :
       content=self.fbOntimeQueue.get()
       tscode=content[0]      
       page=content[1]
-      fbId=content[2]
-      # print('738',tscode,' ',page,fbId)
-      page=self.getQQFbOntime(tscode,page,fbId)
+      print(tscode,' ',page)
+      page=self.getQQFbOntime(tscode,page)
       # print(tscode,' ',page)
       # workQueue.put([tscode,page], True, 2)  
-      # print('3 ',self.fbOntimeQueue.qsize())     
-    # print('ok')  
-    
-  def getQQFbOntime(self,tscode,page,MaxId):#获取腾讯单只股票实时所有分笔数据（收盘处理）            
-    fblist=[]
-    print('747',tscode,' ',page,MaxId)
-    while True:
-      rd=random.randint(0,10000)    
-      url = 'http://stock.gtimg.cn/data/index.php?appn=detail&action=data&c='+tscode+'&p='+str(page)+'&'+str(rd)      
-      content = self.getQQFbContent(url)  #获取腾讯股票实时分笔接口数据，单页数据每页70条   
-      if len(content) != 0:
-        df=self.dealQQFbContent(content) #处理腾讯股票实时分笔接口数据，转换为dataframe格式
-        df["id"] = df["id"].astype("int")
-        fblist.append(df)        
-      else:
-        # print('756',' ',tscode,'  ',page,MaxId)          
-        idmax=max(df['id'])        
-        page=page-1
-        # print("759",' ',idmax,' ',page)
-        break               
-      page+=1
-    try :
-        result = pd.concat(fblist,ignore_index=True)   #合并所有页 
-        result.insert(1, 'ts_code', tscode)    
-        result['trade_time']=self.baseFunc.getDatetime('-')+' '+result['trade_time']    
-        # print(result)
-        # print(767,MaxId)
-        if  MaxId >0 :       
-          # MaxId=MaxId-10
-          # print(770,MaxId)
-          result=result[result['id']>MaxId]
-          # print(773,result)
-        #导入股票列表到数据库   
-        # print(774,result)
-        engineListAppend=self.baseFunc.engineListAppend
-        result.to_sql('fenbi_'+tscode,engineListAppend,if_exists='append',index=False,chunksize=1000)  
-    except:
-      pass
-    
-    # print('1 ',self.fbOntimeQueue.qsize()) 
-    # print('781',page,' ',idmax)
-    self.fbOntimeQueue.put([tscode,page,idmax], True, 2)   
-    # print('2 ',self.fbOntimeQueue.qsize()) 
-    return page    
+      print('3 ',self.fbOntimeQueue.qsize())     
+    print('ok')       
 
   def threadQQonTime(self): #腾讯分笔数据实时下载数据
     start=dt.now()    

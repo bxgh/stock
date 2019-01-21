@@ -3,7 +3,7 @@
 import time,datetime
 import os
 import sched
-import baseFunction,stockFunction,FbQx_csvToDbf
+import baseFunction,stockFunction,FbQx_csvToDbf,FbQQ_onTimeGet
  
  
 # 初始化sched模块的scheduler类
@@ -19,4 +19,8 @@ if __name__ == '__main__':
    
   timerType='fbqx'
   ExcFunc=FbQx_csvToDbf.FenBi(timerType) 
-  ExcFunc.MarketClose('20190118')
+  ExcFunc.MarketClose('20190121')
+
+  
+  # ExcFunc=FbQQ_onTimeGet.FenBi(timerType) 
+  # ExcFunc.MarketClose('20190118')
