@@ -46,8 +46,8 @@ class MSSQL:
     self.stockBasic = self.pro.stock_basic(exchange='',fields='ts_code,symbol,name,area,industry,fullname,enname,market,exchange,curr_type,list_status,list_date,delist_date,is_hs')  
     self.isNotTradeDay()                #获取是否交易日
     self.getTrade_cal()                 #初始化交易日期队列、股票代码队列
-    if self.isTradeDay==1:
-      self.createTables('','kday_') 
+    # if self.isTradeDay==1:
+    self.createTables('','kday_') 
 
   def log(self):
         ''' 日志功能函数'''
@@ -405,6 +405,19 @@ class MSSQL:
         print(filename)
     h5.close()
 
+  def kday_closed(self):
+    wSql="INSERT into analysisUnit(ts_code,trade_date,`open`,`close`,high,low,pre_close,`change`,pct_chg,vol,amount)"
+    wSql=wSql+" select * from allKday_closed "    
+    curTruc=self.GetConnect()         
+    curTruc.execute(wSql)
+    self.connect.commit()
+    self.connect.close()  
+    wSql=" delete from allKday_closed "    
+    curTruc=self.GetConnect()         
+    curTruc.execute(wSql)
+    self.connect.commit()
+    self.connect.close()  
+
   def kday_close(self,closeday) :  
     df=self.pro.daily(trade_date=closeday)
     engineListAppend= self.GetWriteConnect()
@@ -431,12 +444,14 @@ class MSSQL:
         tscodeList = pd.read_sql_query(readSql,con = engineListAppend)        
         for index,row in tscodeList.iterrows():    
           ts_code=row["ts_code"]
-          print(ts_code)
+          # print(ts_code)
           self.createTable('kday_',ts_code)
           rrSql = 'select * from `kday_'+ts_code+'` where trade_date = '+"'"+closeday+"'"+' and ts_code='+"'"+ts_code+"'"
           tspd= pd.read_sql_query(rrSql,con = engineListAppend)  #判断是否已经导入日线到个股表
           if len(tspd)==0 :  #如果没有导入，就执行导入。
-            wSql='insert into `kday_'+ts_code+"`"+" select * from allKday_closed where trade_date = "+"'"+closeday+"'"+" and ts_code="+"'"+ts_code+"'"
+            wSql="INSERT into `kday_"+ts_code+"`"+"(ts_code,trade_date,`open`,`close`,high,low,pre_close,`change`,pct_chg,vol,amount)"
+            wSql=wSql+" select * from allKday_closed where trade_date = "+"'"+closeday+"'"+" and ts_code="+"'"+ts_code+"'"
+            # print(wSql)
             curTruc=self.GetConnect()         
             curTruc.execute(wSql)
             self.connect.commit()
@@ -445,6 +460,31 @@ class MSSQL:
       except :     
         self.isKdayClosed=0
 
+  
+
+  def kday_getAllHis(self,closeday):
+    df=self.pro.daily(trade_date=closeday)
+    engineListAppend= self.GetWriteConnect()
+    tablename ='analysisUnit'   
+    dflen=len(df)  
+    #接收tushare收盘数据
+    readSql = 'select count(*) from analysisUnit where trade_date = '+"'"+closeday+"'"
+    data = pd.read_sql_query(readSql,con = engineListAppend)    
+    try :
+      tradeDay=data.iloc[0,0]
+    except:  
+      tradeDay=0     
+    if (dflen > tradeDay) :
+      trucSql = 'delete from analysisUnit where trade_date = '+"'"+closeday+"'"
+      curTruc=self.GetConnect()         
+      curTruc.execute(trucSql)
+      self.connect.commit()
+      self.connect.close()  
+      try:
+        # 导入总表allKday_closed
+        df.to_sql(tablename,engineListAppend,if_exists='append',index=False,chunksize=1000)         
+      except:
+        pass  
 
   def saveAllH5ToSqlserver(self,statusBar,engineListAppend) :  
     queue2=self.file_queue    
@@ -534,9 +574,97 @@ class MSSQL:
   def test(self):    
     print('dt')
     return 
-     
+
+  def analysisHis(self,closeday):
+    engineListAppend= self.GetWriteConnect()
+    readSql = 'select ts_code,close from analysisUnit where trade_date = '+"'"+closeday+"'" #pd获取收盘日所有日线数据
+    tscodeList = pd.read_sql_query(readSql,con = engineListAppend)  
+    file_handle = open('highHis.txt', 'w')
+    for index,row in tscodeList.iterrows():    
+      ts_code=row["ts_code"]
+      close=row["close"]
+      hisSql="SELECT min(low) as lowHis,max(high) as highHis  from `kday_"+ts_code+"`" +"where trade_date<='"+closeday+"'"
+      hisResult = pd.read_sql_query(hisSql,con = engineListAppend)  
+      if len(hisResult)>0:
+       lowHis=hisResult.loc[0,'lowHis']
+       highHis=hisResult.loc[0,'highHis']
+       hisSql="SELECT trade_date  from `kday_"+ts_code+"`" +"where low="+str(lowHis)
+       dateResult = pd.read_sql_query(hisSql,con = engineListAppend) 
+       lowHisDate=dateResult.loc[0,'trade_date']
+       hisSql="SELECT trade_date  from `kday_"+ts_code+"`" +"where high="+str(highHis)
+       dateResult = pd.read_sql_query(hisSql,con = engineListAppend)
+       highHisDate=dateResult.loc[0,'trade_date'] 
+      #  exesql="update analysisUnit set highHis="+str(highHis)+",highHis_date='"+str(highHisDate)+"',lowHis="+str(lowHis)+",lowHis_date='"+str(lowHisDate)+"', priceScaleHis="+str(close-lowHis)+"/"+str(highHis-lowHis)+"*100 where ts_code='"+ts_code+"' and trade_date='"+closeday+"'"
+      #  print(exesql)
+      #  curTruc=self.GetConnect()         
+      #  curTruc.execute(exesql)
+      #  self.connect.commit()
+      #  self.connect.close()  
+      #  print(lowHis,highHis,lowHisDate,highHisDate)    
+      #  file_handle.write("index"+","+"Kernel"+“,"+"Context"+","+"Stream"+'\n') # 写列名
+       dm=ts_code[7:9]+ts_code[0:6]
+       priceScaleHis=round((close-lowHis)/(highHis-lowHis)*100,2) 
+      #  serise = dm+","+str(highHis)+","+str(highHisDate)+","+ str(lowHis)+","+ str(lowHisDate)+","+str(priceScaleHis)  # 每个元素都是字符串，使用逗号分割拼接成一个字符串
+      #  print(dm)
+       serise=dm+"\t"+str(highHis)
+       print(serise)
+       file_handle.write(serise+'\n') # 末尾使用换行分割每一行。
+    file_handle.close()
+
+  def limitCounts(self,closeday):
+    engineListAppend= self.GetWriteConnect()
+    readSql="select count(*) as upCounts from allKday_closed where  ts_code like "+"'"+'%%.SH'+"'"+" and pct_chg>9.98 and trade_date="+"'"+closeday+"'"
+    tscodeList = pd.read_sql_query(readSql,con = engineListAppend)     
+    upLimitSH=tscodeList.loc[0,'upCounts']
+    readSql="select count(*) as upCounts from allKday_closed where  ts_code like "+"'"+'%%.SZ'+"'"+" and pct_chg>9.98 and trade_date="+"'"+closeday+"'"
+    tscodeList = pd.read_sql_query(readSql,con = engineListAppend)     
+    upLimitSZ=tscodeList.loc[0,'upCounts']
+    readSql="select count(*) as upCounts from allKday_closed where  ts_code like "+"'"+'%%.SZ'+"'"+" and pct_chg<-9.98 and trade_date="+"'"+closeday+"'"
+    tscodeList = pd.read_sql_query(readSql,con = engineListAppend)     
+    downLimitSZ=tscodeList.loc[0,'upCounts']
+    readSql="select count(*) as upCounts from allKday_closed where  ts_code like "+"'"+'%%.SH'+"'"+" and pct_chg<-9.98 and trade_date="+"'"+closeday+"'"
+    tscodeList = pd.read_sql_query(readSql,con = engineListAppend)     
+    downLimitSH=tscodeList.loc[0,'upCounts']
+    statistic=[]
+    statistic.append(upLimitSH)
+    statistic.append(upLimitSZ)
+    statistic.append(downLimitSH)    
+    statistic.append(downLimitSZ)
+    # print(upLimitSH,upLimitSZ,downLimitSH,downLimitSZ)
+    return statistic
+
+  def limitSave(self,limitContent):
+    upLimitSH=int(limitContent[0])
+    upLimitSZ=int(limitContent[1])
+    downLimitSH=int(limitContent[2])
+    downLimitSZ=int(limitContent[3])
+    print(upLimitSH,upLimitSZ,downLimitSH,downLimitSZ)
+    # for index,row in tscodeList.iterrows(): 
+    curTruc=self.GetConnect()      
+    exesql=" insert into  zflimit (ts_code,trade_date,uplimit_counts,downlimit_counts) value (%s,%s,%s,%s)"
+    curTruc.execute(exesql,('000001.SH','20190313',upLimitSH,downLimitSH))  
+    exesql=" insert into  zflimit (ts_code,trade_date,uplimit_counts,downlimit_counts) value (%s,%s,%s,%s)"
+    curTruc.execute(exesql,('399001.SZ','20190313',upLimitSZ,downLimitSZ))  
+    self.connect.commit()
+    self.connect.close()  
+
+
+
+
 def main(): 
-  pass
+  mskday = MSSQL(host="192.168.151.216", user="toshare1", pwd="toshare1", db="kday_qfq",myOrms="mysql")
+  statistics = MSSQL(host="192.168.151.216", user="toshare1", pwd="toshare1", db="statistics",myOrms="mysql")
+  # mskday.analysisHis('20190304')  
+  # mskday.kday_close('20190304')
+  statistic=mskday.limitCounts('20190313')
+  statistics.limitSave(statistic)
+  # print(statistic)
+  #补充总表行情
+  # trade_cal = mskday.pro.query('trade_cal', exchange='SZSE', start_date='20190101',end_date='20190304', is_open=1)
+  #       #将日期列转换为list，便于使用队列
+  # trade_cals = trade_cal['cal_date'].tolist()
+  # for trade_cal in trade_cals:
+  #   mskday.kday_getAllHis(trade_cal)
 
 if __name__ == '__main__':
   main()

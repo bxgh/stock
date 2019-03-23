@@ -754,18 +754,19 @@ class FenBi:
     s = r'\".*"'
     pat = re.compile(s)
     code = pat.findall(content)
-    code=code[0].replace('"','') 
-    code=code+'|'
-    s=r'.*?\S\|'
+    code=code[0].replace('"','')  #得到分笔json数据
+    code=code+'|'                 #在最后加“|”保持最后一条数据可以正确得到
+    s=r'.*?\S\|'             
     pat = re.compile(s)
-    code1 = pat.findall(code)
+    code1 = pat.findall(code)     #得到分笔数据集合
     s=r'(.*?)\/'
     pat2 = re.compile(s)
     code3=[]
     for fb in code1:
-      fb=re.sub(r'\|','/',fb)  
+      fb=re.sub(r'\|','/',fb)        
       code3.append(pat2.findall(fb))
       df=pd.DataFrame(code3,columns=('id','trade_time','price','updown','vol','amount','bs'))
+      
     return df
 
   def getQQFbOneAllPgToDbf(self,tscode):#获取腾讯单只股票实时所有分笔数据（收盘处理）
@@ -794,16 +795,39 @@ class FenBi:
     # print(result)
     # df = pd.read_csv('I:/fbHd5Dest/zbi_20190102/20190102/SZ000002.csv')
 
-  def test(self):
-    # workQueue=queue.Queue()
-    # tempQueue=self.baseFunc.getTscodeQueue()
-    # while not tempQueue.empty():
-    #    tscode=tempQueue.get()      
-    #    workQueue.put([tscode,0],2)       
-    # print(workQueue.get())    
-    # print(tempQueue.qsize())    
-    # print(self.baseFunc.getTscodeQueue().qsize())
-    print('ok')
+  def dealQQLimitContent(self,content): #处理腾讯股票实时行情接口数据，转换为dataframe格式
+    s = r'\".*"'
+    pat = re.compile(s)
+    code = pat.findall(content)
+    code=code[0].replace('"','')
+    s=r'~(.*?)\~'
+    pat2 = re.compile(s)
+    pat2.findall(code)
+    df=code 
+    # code=code+'|'
+    # s=r'.*?\S\|'
+    # pat = re.compile(s)
+    # code1 = pat.findall(code)
+    # s=r'(.*?)\/'
+    # pat2 = re.compile(s)
+    # code3=[]
+    # for fb in code1:
+    #   # fb=re.sub(r'\|','/',fb)  
+    #   fb=re.sub(r'\|','/',fb)    
+    #   code3.append(pat2.findall(fb))
+    #   # df=pd.DataFrame(code3,columns=('id','trade_time','price','updown','vol','amount','bs'))
+    #   df=pd.DataFrame(code3)
+    return df
+
+  def test(self,tscode):
+     rd=random.randint(0,10000)    
+     url = 'http://qt.gtimg.cn/q=s_'+tscode+'&'+str(rd)      
+     content = self.getQQFbContent(url)  #获取腾讯股票实时分笔接口数据，单页数据每页70条   
+     print(content)
+     if len(content) != 0:
+        df=self.dealQQLimitContent(content) #处理腾讯股票实时分笔接口数据，转换为dataframe格式
+        print(df)
+        # fblist.append(df)
 
   def testOntime(self):    
     stcodes=self.baseFunc.stockBasic    
@@ -887,7 +911,8 @@ class FenBi:
 
 
 def main(): 
-  pass
+  calcLimit=FenBi(timerType='20190314')
+  calcLimit.test('sz000858')
 
 if __name__ == '__main__':
   main()

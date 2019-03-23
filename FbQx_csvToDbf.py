@@ -88,6 +88,7 @@ class FenBi:
     self.conf.write(open("config.ini", "w"))
 
   def MarketClose(self,closeDay): #大富翁全息分笔数据ftp下载    FbDownQxftp.py     
+   while True:
     start=dt.now()    
     exitFlag = 0
     treadsCounts=40
