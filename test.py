@@ -13,6 +13,10 @@ fbQQCodeQueue = queue.Queue()
 # 设置tushare.token
 ts.set_token('38bb3cd1b6af2d75a7d7e506db8fd60354168642b400fa2104af81c5')
 pro = ts.pro_api()
+try:
+ df = ts.pro_bar(pro_api=pro, ts_code='001872.SZ', adj='qfq', start_date='20100301', end_date='20180324')  
+except Exception as e:
+ print(e)
 stockBasic = pro.stock_basic(
     exchange='', fields='ts_code,symbol,name,area,industry,fullname,enname,market,exchange,curr_type,list_status,list_date,delist_date,is_hs')
 stocksList = stockBasic['ts_code'].tolist()

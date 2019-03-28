@@ -15,6 +15,8 @@ import queue
 import threading
 import random
 import timeit
+import configparser
+
 
 # con = create_engine('mssql+pyodbc://username:password@myhost:port/databasename?driver=SQL+Server+Native+Client+10.0')
 # engine=create_engine("mssql+pymssql://sa:1@192.168.151.141:1433/ba_zyyy_new?charset=utf8",echo=True)
@@ -22,7 +24,7 @@ import timeit
 class MSSQL:
   def __init__(self,host,user,pwd,db,myOrms):
     ts.set_token('38bb3cd1b6af2d75a7d7e506db8fd60354168642b400fa2104af81c5') #设置tushare.token
-    self.api = ts.pro_api('38bb3cd1b6af2d75a7d7e506db8fd60354168642b400fa2104af81c5')  
+    # self.api = ts.pro_api('38bb3cd1b6af2d75a7d7e506db8fd60354168642b400fa2104af81c5')  
     self.pro = ts.pro_api()            #连接tushare  
     self.mysqlormssql=myOrms
     self.host=host                     #获取数据库连接字符串
@@ -38,16 +40,22 @@ class MSSQL:
     self.isKdayClosed=0                 #当天是否执行日线收盘作业
     self.allKdayDir='./kday/'
     #股票交易代码list
-    self.stockBasic = self.pro.stock_basic(exchange='',fields='ts_code,symbol,name,area,industry,fullname,enname,market,exchange,curr_type,list_status,list_date,delist_date,is_hs')  
+    # self.stockBasic = self.pro.stock_basic(exchange='',fields='ts_code,symbol,name,area,industry,fullname,enname,market,exchange,curr_type,list_status,list_date,delist_date,is_hs')  
+    self.stockBasic = self.pro.stock_basic(exchange='', list_status='L', fields='ts_code,symbol,name,area,industry,list_date')
     self.isNotTradeDay()                #获取是否交易日
-    self.getTrade_cal()                 #初始化交易日期队列、股票代码队列     
+    self.getTrade_cal()                 #初始化交易日期队列、股票代码队列    
+    self.conf = configparser.ConfigParser()
+    self.conf.read('config.ini') 
+     #读取config：workDir配置，在对应控件上显示    
+    # self.stockbasic_dir =self.conf.get('workDir','stockbasic_dir') 
 
   def MarketOpen(self)  :   #开盘初始化
     self.stockBasic = self.pro.stock_basic(exchange='',fields='ts_code,symbol,name,area,industry,fullname,enname,market,exchange,curr_type,list_status,list_date,delist_date,is_hs')  
     self.isNotTradeDay()                #获取是否交易日
     self.getTrade_cal()                 #初始化交易日期队列、股票代码队列
     # if self.isTradeDay==1:
-    self.createTables('','kday_') 
+    self.createTables('','kday_')
+    self.stockBasic() 
 
   def log(self):
         ''' 日志功能函数'''
@@ -62,6 +70,12 @@ class MSSQL:
         logger.addHandler(handler)
         # logger.addHandler(handlerStream)
         logging.info('开始获取%s的数据' % (self.getDatetime()))
+
+  def stockBasicH5(self):   
+    filename = '.\\stockBasic.hd5'        
+    h5 = pd.HDFStore(filename,'w')
+    h5['data'] = self.stockBasic      
+    h5.close()  
 
   def getDatetime(self):              #获取当天日期       
         taday = dt.now().strftime('%Y%m%d')
@@ -118,8 +132,8 @@ class MSSQL:
 
   def ExecSql(self,sql):
      cur=self.GetConnect()
-     cur.execute(sql)
-     self.connect.commit()
+     cur.execute(sql)     
+     self.connect.commit()     
      self.connect.close()
 
   def ExecQuery(self,sql):
@@ -127,7 +141,7 @@ class MSSQL:
     cur.execute(sql)
     resList = cur.fetchall()
     self.connect.close()
-    return resList  
+    return list(resList)  
 
   def setStockList(self):    
     #每日更新最新股票列表
@@ -221,6 +235,7 @@ class MSSQL:
         dateList[i].append(tsCode)
         dateList[i].append(startDate)  
         dateList[i].append(endDate) 
+        
         self.hisDate_queue.put(dateList[i], True, 1)   #将分好的日期存入队列   
         i = i + 1    
     # hisDate = pd.DataFrame(dateList, columns=['tsCode','startDate', 'endDate']) 为dataframe设置标题
@@ -232,35 +247,38 @@ class MSSQL:
     self.hisDate_queue.queue.clear()
     for index, row in stockList.iterrows():    
        ts_code=row["ts_code"]
-       list_date=row["list_date"]       
+       list_date=row["list_date"]   
+      #  if ts_code[0:3]=='001':
        self.getHisDate(ts_code,list_date)       
     #    hisDates=pd.concat([hisDates,hisDates1],ignore_index=True)  合并dataframe 这里没用 
     # logging.info('共计%s条数据' % (self.hisDate_queue.qsize()))    
     return  
   
-  def trucHiskday(self):
-    # queue1=self.hisDate_queue   
-    # while not queue1.empty():
-    #   queue_data1 = queue1.get(True, 2) #从队列中取出数据
-    #   stockcode1 = queue_data1[0]      
-    #   curTruc=self.GetConnect()   
-    #   trucSql ='truncate table' +'[kday_' + stockcode1+']'
-    #   curTruc.execute(trucSql)
-    #   self.connect.commit()
-    #   self.connect.close() 
-    #   sleep(random.randint(1, 2))
-    curTruc=self.GetConnect()   
-    trucSql ='exec [dbo].[deleteAllKday]'
-    curTruc.execute(trucSql)
-    self.connect.commit()
-    self.connect.close()  
-    return    
+  def getWholeKday(self) :  #获取所有股票K线历史数据，初始化数据
+    self.trucHiskday()   
+    # result=df[(df['ask1_volume']==0) & (df['volume']>0)]
+    self.getHisDates(self.stockBasic)
+    self.getHisKdays()
+    
+
+
+  def trucHiskday(self):     #mysql删除所有K线历史数据
+    for index,row in self.stockBasic.iterrows():
+     stockcode=row['ts_code']
+     sql='DELETE from `kday_'+stockcode+'`'
+     try :
+      self.ExecSql(sql)      
+     except:
+       pass 
+        
 
   def getKday(self,tscode,startDate,endDate):  
-    df = self.pro.query('daily', ts_code=tscode, start_date=startDate, end_date=endDate)
+    # df = self.pro.query('daily', ts_code=tscode, start_date=startDate, end_date=endDate)
+    df = ts.pro_bar(pro_api=self.pro, ts_code=tscode, adj='qfq', start_date=startDate, end_date=endDate)  
     engineListAppend= self.GetWriteConnect()
-    tablename ='kday_'+tscode    
-    df.to_sql(tablename,engineListAppend,if_exists='append',index=False,chunksize=1000) 
+    tablename ='kday_'+tscode   
+    if df.size>0 :
+     df.to_sql(tablename,engineListAppend,if_exists='append',index=False,chunksize=1000) 
     # logging.info('--> %s 的数据共计:%s 条 <--' %(tscode, len(df)))   
     return
  
@@ -268,24 +286,31 @@ class MSSQL:
     '''获指定日期或日期范围的股票数据__股票历史k线数据'''
     # logging.info('线程(%s)启动' % (threading.current_thread().name))    
     queue2=self.hisDate_queue    
-    while not queue2.empty():        	
+    stockGotList=[]
+    while not queue2.empty():                	
         queue_data = queue2.get(True, 2) #从队列中取出数据
         stockcode = queue_data[0]
+        print(stockcode)
         sdate = queue_data[1]
-        edate = queue_data[2]
-        try:
-          self.getKday(stockcode,sdate,edate)
-        except Exception as e:
-          sleep(5)
-          queue2.put(queue_data)
-    # logging.info('线程(%s)结束' % (threading.current_thread().name))
+        edate = queue_data[2]  
+        if edate>sdate:    
+         while True:
+          try:
+            self.getKday(stockcode,sdate,edate)              
+            break
+          except Exception as e:          
+            if e=='index out of bounds':
+              print(stockcode)
+              break
+            else:  
+              time.sleep(121)
     return  
 
   def getKdayH5(self,tscode,startDate,endDate):  
     tablename ='kday_'+tscode 
     # df = self.pro.query('daily', ts_code=tscode, start_date=startDate, end_date=endDate)    
     try:
-     df = ts.pro_bar(pro_api=self.api, ts_code=tscode, adj='qfq', start_date=startDate, end_date=endDate)    
+     df = ts.pro_bar(pro_api=self.pro, ts_code=tscode, adj='qfq', start_date=startDate, end_date=endDate)    
      filename = self.allKdayDir + tablename + '_' + startDate + '_' + endDate        
      h5 = pd.HDFStore(filename,'w')
      h5['data'] = df      
@@ -571,9 +596,35 @@ class MSSQL:
         pass
         return False
 
-  def test(self):    
-    print('dt')
-    return 
+  def test(self):
+    codeList=[]
+    connect=pymysql.connect(host=self.host,port=3306,user=self.user,password=self.pwd,database=self.db,charset='utf8') 
+    for index,row in self.stockBasic.iterrows():
+      dm=row['ts_code']   
+      # print(dm) 
+      sql='select * from `kday_'+dm+'`  order by trade_date desc '   
+      df=pd.read_sql(sql,con=connect)
+      if df.size>1 :        
+        preClose=df['pre_close'].iloc[0]
+        df.drop([0],inplace=True)        
+        for index,row in df.iterrows():       
+          close=row['close']
+          tscode=row['ts_code']               
+          tradeDate=row['trade_date']       
+          if abs(close-preClose)>0.1 and tradeDate>dt.strptime('2017-01-01','%Y-%m-%d').date():
+            print(tscode,close,preClose,tradeDate,abs(close-preClose))
+            codeList.append([tscode,tradeDate])            
+            break            
+          preClose=row['pre_close']  
+    print(codeList)  
+    result=pd.DataFrame(codeList)
+    print(result)
+    filename = 'c:\\ontimeKday\\qfqTscode.h5'   
+    h5 = pd.HDFStore(filename,'w')
+    h5['data']=result   
+    h5.close()
+    connect.close()
+    # print(codeList)
 
   def analysisHis(self,closeday):
     engineListAppend= self.GetWriteConnect()
@@ -648,16 +699,62 @@ class MSSQL:
     self.connect.commit()
     self.connect.close()  
 
+  def calcMa(self,maDate):    #计算均线
+    df1=[]
+    
+    for tscode1 in self.stockBasic['ts_code']:
+      # tscode1=self.stockBasic['ts_code']
+      print(tscode1)
+      sql="SELECT * from `kday_"+tscode1+"` where trade_date<="+ "'"+maDate+"'"+"ORDER BY trade_date desc"
+      result=self.ExecQuery(sql)
+      df=pd.DataFrame(result,columns=['ts_code','trade_date','open','close','high','low','pre_close','change','pct_chg','vol','amount'])
+      # print(df)
+      # a=pd.rollingmean(df['close'], ma)
+      df['ma5']=df['close'].rolling(5).mean()
+      
+      # df1.append(df)
+    # madf=pd.concat(df1)
+      print(df)
 
+  def addKday(self): #行情数据清除   
+    for index,row in self.stockBasic.iterrows():      
+     dm=row['ts_code']
+     sql='DELETE from `kday_'+dm+'` where trade_date>"2018-10-31"'
+     self.ExecSql(sql)
+     while True:
+      try:
+        self.getKday(dm,'20181101','20190322')
+        break
+      except:
+        time.sleep(301) 
+      
+    #  print(dm+' is ok !')
+    
 
+  
 
 def main(): 
-  mskday = MSSQL(host="192.168.151.216", user="toshare1", pwd="toshare1", db="kday_qfq",myOrms="mysql")
-  statistics = MSSQL(host="192.168.151.216", user="toshare1", pwd="toshare1", db="statistics",myOrms="mysql")
+  mskday = MSSQL(host="192.168.151.216", user="toshare1", pwd="toshare1", db="kday_qfq",myOrms="mysql")  
+  # mskday.getWholeKday()
+  mskday.calcMa('2019-03-27')
+
+  # mskday.test()
+  # mskday.clearKday()
+  # filename = 'c:\\ontimeKday\\qfqTscode.h5'   
+  # h5 = pd.HDFStore(filename,'r')
+  # result =h5['data'] 
+  # result.columns =['tscode','tradeDate'] 
+  # h5.close()
+
+  # df=result[result['tradeDate']> dt.strptime('2017-01-01','%Y-%m-%d').date()]
+  # date = dt.strptime('2017-01-01','%Y-%m-%d')
+    #  df[(df['ask1_volume']==0) & (df['volume']>0)]
+  # print(df)
+  # statistics = MSSQL(host="192.168.151.216", user="toshare1", pwd="toshare1", db="statistics",myOrms="mysql")  
   # mskday.analysisHis('20190304')  
   # mskday.kday_close('20190304')
-  statistic=mskday.limitCounts('20190313')
-  statistics.limitSave(statistic)
+  # statistic=mskday.limitCounts('20190313')
+  # statistics.limitSave(statistic)
   # print(statistic)
   #补充总表行情
   # trade_cal = mskday.pro.query('trade_cal', exchange='SZSE', start_date='20190101',end_date='20190304', is_open=1)

@@ -7,20 +7,26 @@ import threading
 import time
 from datetime import datetime as dt
 from WindPy import *
-import easyquotation
+# import easyquotation
 
 
 
 ts.set_token('38bb3cd1b6af2d75a7d7e506db8fd60354168642b400fa2104af81c5') #设置tushare.token
 pro = ts.pro_api()    
+# df=ts.pro_bar(pro_api=pro, ts_code='002107.SZ', adj='qfq',start_date='20181228', end_date='20190322', ma=[3,5,20,60])
+df=ts.pro_bar(pro_api=pro,  ts_code='002017.SZ', adj='qfq',start_date='20181228', end_date='20190325') 
+df3=df.head(5)['close'].mean()
+df.apply(lambda x:x.max()-x.min())
+# ma3=df3['close'].mean()
+print(df3)
 # df = pro.index_dailybasic(trade_date='20190322')
 # df = pro.index_basic(market='SZSE')
 # df = ts.pro_bar(pro_api=pro, trade_date='20190322',adj='qfq', ma=[3,5, 20, 50])
 # df = pro.daily(trade_date='20190322')
-df = pro.stock_basic(exchange='', list_status='L', fields='ts_code,symbol,name,area,industry,list_date')
-print(df)
+# df = pro.stock_basic(exchange='', list_status='L', fields='ts_code,symbol,name,area,industry,list_date')
+print(df3)
 
-w.start()
+# w.start()
 stockBasic_queue = LifoQueue()
 quotation = easyquotation.use('qq')
 
