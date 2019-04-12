@@ -42,7 +42,7 @@ while True:
 
   driver.switch_to_window(news_handle)               #切换到重要新闻窗口
   time.sleep(2)      
-  getItem=driver.find_elements_by_class_name("word-item")  #获取新闻列表  
+  getItem=driver.find_elements_by_class_name("extra-wrap")  #获取新闻列表  
   for divId in getItem[0:18]:
     driver.switch_to_window(news_handle)
     itemDate=divId.text
@@ -83,7 +83,7 @@ while True:
 
   driver.switch_to_window(study_handle)               #切换到<学习时评>窗口
   time.sleep(2)      
-  getItem=driver.find_elements_by_class_name("text-wrap")  #获取列表  text-wrap  word-item
+  getItem=driver.find_elements_by_class_name("extra-wrap")  #获取列表  text-wrap  word-item
   for divId in getItem[0:18]:
     driver.switch_to_window(study_handle)
     itemDate=divId.text

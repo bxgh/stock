@@ -446,18 +446,20 @@ class MSSQL:
 
   def kday_close(self,closeday) :  
    T=True
+   maday=closeday[0:4]+'-'+closeday[4:6]+'-'+closeday[6:8]   
    while  T:
-    df=self.pro.daily(trade_date=closeday)
+    df=self.pro.daily(trade_date=closeday)    
     engineListAppend= self.GetWriteConnect()
     tablename ='allKday_closed'   
     dflen=len(df)  
     #接收tushare收盘数据
     readSql = 'select count(*) from allKday_closed where trade_date = '+"'"+closeday+"'"
-    data = pd.read_sql_query(readSql,con = engineListAppend)    
+    data = pd.read_sql_query(readSql,con = engineListAppend)       
     try :
       tradeDay=data.iloc[0,0]
     except:  
-      tradeDay=0     
+      tradeDay=0  
+    print('1',dflen,tradeDay)   
     if (dflen > tradeDay) :
       trucSql = 'delete from allKday_closed where trade_date = '+"'"+closeday+"'"
       curTruc=self.GetConnect()         
@@ -487,9 +489,9 @@ class MSSQL:
       except:
         pass                          
     else:
-      try:        
-        self.getMa(closeday) 
-        self.calcMa(closeday)  
+      try:           
+        self.getMa(maday) 
+        self.calcMa(maday)  
         T=False 
       except:
         pass   
@@ -824,7 +826,8 @@ def main():
 
 
   mskday = MSSQL(host="192.168.151.216", user="toshare1", pwd="toshare1", db="kday_qfq",myOrms="mysql") 
-  mskday.kday_close('2019-04-11') 
+ 
+  mskday.kday_close('20190412') 
   # mskday.calcMa('2019-04-11')
   # mskday.getWholeKday()
   trade_cal = mskday.pro.query('trade_cal', exchange='SZSE', start_date='2018010',end_date='20190404', is_open=1)
