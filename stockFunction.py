@@ -1,4 +1,5 @@
-import time
+import time,datetime
+from decimal import Decimal
 from datetime import datetime as dt
 import os
 import pymysql
@@ -45,7 +46,7 @@ class MSSQL:
     self.isNotTradeDay()                #获取是否交易日
     self.getTrade_cal()                 #初始化交易日期队列、股票代码队列    
     self.conf = configparser.ConfigParser()
-    self.conf.read('config.ini') 
+    self.conf.read('config.ini')       
      #读取config：workDir配置，在对应控件上显示    
     # self.stockbasic_dir =self.conf.get('workDir','stockbasic_dir') 
 
@@ -444,6 +445,8 @@ class MSSQL:
     self.connect.close()  
 
   def kday_close(self,closeday) :  
+   T=True
+   while  T:
     df=self.pro.daily(trade_date=closeday)
     engineListAppend= self.GetWriteConnect()
     tablename ='allKday_closed'   
@@ -480,11 +483,16 @@ class MSSQL:
             curTruc=self.GetConnect()         
             curTruc.execute(wSql)
             self.connect.commit()
-            self.connect.close()  
-        self.isKdayClosed=1  
-      except :     
-        self.isKdayClosed=0
-
+            self.connect.close()    
+      except:
+        pass                          
+    else:
+      try:        
+        self.getMa(closeday) 
+        self.calcMa(closeday)  
+        T=False 
+      except:
+        pass   
   
 
   def kday_getAllHis(self,closeday):
@@ -699,22 +707,94 @@ class MSSQL:
     self.connect.commit()
     self.connect.close()  
 
-  def calcMa(self,maDate):    #计算均线
-    df1=[]
-    
-    for tscode1 in self.stockBasic['ts_code']:
-      # tscode1=self.stockBasic['ts_code']
-      print(tscode1)
-      sql="SELECT * from `kday_"+tscode1+"` where trade_date<="+ "'"+maDate+"'"+"ORDER BY trade_date desc"
+  
+
+  def getMa(self,maDate):    #计算均线 ，参数说明：maDate为均线计算日期，即收盘日期   
+    edate=datetime.datetime.strptime(maDate, '%Y-%m-%d')
+    sdate1 = edate +  datetime.timedelta(-400)
+    sdate=dt.strftime(sdate1,'%Y-%m-%d')    
+    sql="select ts_code from allKday_closed WHERE trade_date='"+maDate+"'"    
+    connect=pymysql.connect(host=self.host,port=3306,user=self.user,password=self.pwd,database=self.db,charset='utf8')      
+    # connect=pymysql.connect(host="192.168.151.216",port=3306,user="toshare1",password="toshare1",database="kday_qfq",charset='utf8')      
+    tscodeDf=pd.read_sql(sql,con=connect)
+    print(tscodeDf)
+    connect.close()
+
+    for tscode1 in tscodeDf['ts_code']:      
+      # print(tscode1)
+      sql="SELECT * from `kday_"+tscode1+"` where trade_date >'"+sdate+"'  and trade_date<="+ "'"+maDate+"'"+" ORDER BY trade_date "   #获取股票kday数据
       result=self.ExecQuery(sql)
-      df=pd.DataFrame(result,columns=['ts_code','trade_date','open','close','high','low','pre_close','change','pct_chg','vol','amount'])
-      # print(df)
-      # a=pd.rollingmean(df['close'], ma)
-      df['ma5']=df['close'].rolling(5).mean()
-      
-      # df1.append(df)
-    # madf=pd.concat(df1)
-      print(df)
+      df=pd.DataFrame(result,columns=['ts_code','trade_date','open','close','high','low','pre_close','change','pct_chg','vol','amount'])   
+      try:
+         tradeDate=str(df.tail(1).iloc[0,1]) 
+        #  tradeDate='2019-03-29' 
+      except:
+         tradeDate='1970-01-01'  
+      # print(tradeDate,tradeDate==str(maDate))         
+      if tradeDate==str(maDate):         #剔除停牌股票
+        df['ma3']=df['close'].rolling(3).mean()    #计算均线
+        df['ma5']=df['close'].rolling(5).mean()
+        df['ma10']=df['close'].rolling(10).mean()
+        df['ma20']=df['close'].rolling(20).mean()
+        df['ma30']=df['close'].rolling(30).mean()
+        df['ma60']=df['close'].rolling(60).mean()
+        df['ma120']=df['close'].rolling(120).mean()
+        df['ma250']=df['close'].rolling(250).mean()      
+        df1= df.tail(1)    
+        if tscode1=='000001.SZ' :
+          res=df1
+        else:                
+          res=res.append(df1)
+    # print(res)  
+    filename = 'C:\\ontimeKday\\ma\\'+maDate+'.h5'   #保存结果到h5文件
+    h5 = pd.HDFStore(filename,'w')
+    h5['data'] = res      
+    h5.close() 
+    
+
+  def calcMa(self,calDate):
+    maDir='c:\\ontimeKday\\ma\\'
+    filename = maDir+calDate+".h5"       
+    h5 = pd.HDFStore(filename,'r')
+    ma =h5['data'] 
+
+    ma['ma3up']=ma.apply(lambda r: (float(r['close'])-r['ma3'])*100/r['ma3'], axis=1)
+    ma['ma5up']=ma.apply(lambda r: (float(r['close'])-r['ma5'])*100/r['ma5'], axis=1)  
+    ma['ma10up']=ma.apply(lambda r: (float(r['close'])-r['ma10'])*100/r['ma10'], axis=1)  
+    ma['ma20up']=ma.apply(lambda r: (float(r['close'])-r['ma20'])*100/r['ma20'], axis=1) 
+    ma['ma30up']=ma.apply(lambda r: (float(r['close'])-r['ma30'])*100/r['ma30'], axis=1) 
+    ma['ma60up']=ma.apply(lambda r: (float(r['close'])-r['ma60'])*100/r['ma60'], axis=1) 
+    ma['ma120up']=ma.apply(lambda r: (float(r['close'])-r['ma120'])*100/r['ma120'], axis=1)     
+    try :
+      ma['ma250up']=ma.apply(lambda r: (float(r['close'])-r['ma250'])*100/r['ma250'], axis=1) 
+    except:
+      ma['ma250up']=ma.apply(lambda r: (float(r['close'])-r['ma240'])*100/r['ma240'], axis=1)   
+    
+    ts_code='000000.SZ'
+    opens=ma[ma['close']>0]['close'].count()
+    uplimits  =ma[(ma['close']-ma['high']==0) & (ma['pct_chg']>9.9)]['close'].count()
+    downlimits=ma[(ma['close']-ma['low']==0) & (ma['pct_chg']<-9.9)]['close'].count()
+    ma3up=ma[ma['ma3up']>0]['ma3up'].count()
+    ma5up=ma[ma['ma5up']>0]['ma5up'].count()
+    ma10up=ma[ma['ma10up']>0]['ma10up'].count()
+    ma20up=ma[ma['ma20up']>0]['ma20up'].count()
+    ma30up=ma[ma['ma30up']>0]['ma30up'].count()
+    ma60up=ma[ma['ma60up']>0]['ma60up'].count()
+    ma120up=ma[ma['ma120up']>0]['ma120up'].count()
+    ma240up=ma[ma['ma250up']>0]['ma250up'].count()
+    
+    sql="INSERT INTO zflimit (ts_code,trade_date,uplimits,downlimits,opens,ma3ups,ma5ups,ma10ups,ma20ups,ma30ups,ma60ups,ma120ups,ma250ups ) values ( %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+    connect=pymysql.connect(host="192.168.151.216",port=3306,user="toshare1",password="toshare1",database="statistics",charset='utf8')  
+    cur=connect.cursor()     
+    cur.execute(sql,(ts_code,calDate,int(uplimits),int(downlimits),int(opens),int(ma3up),int(ma5up),int(ma10up),int(ma20up),int(ma30up),int(ma60up),int(ma120up),int(ma240up),)) 
+    connect.commit()
+    connect.close()    
+    
+
+    # print(ma[(ma['close']-ma['high']==0) & (ma['pct_chg']>9.91)])
+    # print(ma3up,ma5up,ma10up,ma20up,ma30up,ma60up,ma120up,ma240up)
+
+    h5.close()
 
   def addKday(self): #行情数据清除   
     for index,row in self.stockBasic.iterrows():      
@@ -733,17 +813,39 @@ class MSSQL:
 
   
 
-def main(): 
-  mskday = MSSQL(host="192.168.151.216", user="toshare1", pwd="toshare1", db="kday_qfq",myOrms="mysql")  
+def main():  
+  # maDir='c:\\ontimeKday\\ma\\'
+  # filename = maDir+'2018-01-02'+".h5"       
+  # h5 = pd.HDFStore(filename,'r')
+  # ma =h5['data'] 
+  # print(ma)
+  # h5.close()
+
+
+
+  mskday = MSSQL(host="192.168.151.216", user="toshare1", pwd="toshare1", db="kday_qfq",myOrms="mysql") 
+  mskday.kday_close('2019-04-11') 
+  # mskday.calcMa('2019-04-11')
   # mskday.getWholeKday()
-  mskday.calcMa('2019-03-27')
+  trade_cal = mskday.pro.query('trade_cal', exchange='SZSE', start_date='2018010',end_date='20190404', is_open=1)
+        #将日期列转换为list，便于使用队列
+  trade_cals = trade_cal['cal_date'].tolist()
+  for trade_cal in trade_cals:
+    trade_cal=trade_cal[0:4]+'-'+trade_cal[4:6]+'-'+trade_cal[6:8]
+    print(trade_cal)
+    # mskday.getMa(trade_cal)
+    mskday.calcMa(trade_cal)
+
 
   # mskday.test()
   # mskday.clearKday()
-  # filename = 'c:\\ontimeKday\\qfqTscode.h5'   
+
+  # filename = 'c:\\ontimeKday\\ma\\20190403.h5'   
   # h5 = pd.HDFStore(filename,'r')
-  # result =h5['data'] 
-  # result.columns =['tscode','tradeDate'] 
+  # ma =h5['data'] 
+  # ma['ma3_a']=ma.apply(lambda r: (float(r['close'])-r['ma3'])*100/r['ma3'], axis=1)
+  # ma['ma5_a']=ma.apply(lambda r: (float(r['close'])-r['ma5'])*100/r['ma5'], axis=1)  
+  # print(ma[ma['ma3_a']<0]['ma3_a'].count())
   # h5.close()
 
   # df=result[result['tradeDate']> dt.strptime('2017-01-01','%Y-%m-%d').date()]
