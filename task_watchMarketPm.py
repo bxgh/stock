@@ -8,7 +8,7 @@ watchMarket=watchMarket.watchStockMarket()
 T=True
 while T:
     now = dt.now().strftime('%H%M%S')
-    if now>'113100':
+    if now>'150030':
       T=False  
     else:
       watchMarket.getQqMarketData()

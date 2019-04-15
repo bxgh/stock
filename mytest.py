@@ -10,6 +10,12 @@ from WindPy import *
 import easyquotation
 import pymysql
 
+quotationQq = easyquotation.use('qq')
+data=quotationQq.real(['603828'], prefix=True)
+df=pd.DataFrame.from_dict(data,orient='index')    
+df=df.reset_index()
+print(df.columns)
+
 connect=pymysql.connect(host="192.168.151.216",port=3306,user="toshare1",password="toshare1",database="kday_qfq",charset='utf8')  
 sql="select concat(LOWER(RIGHT(ts_code,2)), LEFT(ts_code,6)) as code from allKday_closed WHERE trade_date='2019-04-10' "
 tscodeDf=pd.read_sql(sql,con=connect)
