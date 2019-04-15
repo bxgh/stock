@@ -3,13 +3,11 @@ import re,random
 import numpy as np
 import tushare as ts
 import pandas as pd
-from queue import LifoQueue
-# import threading
 import time 
 from datetime import datetime as dt
-# from WindPy import *
 import easyquotation
 import pymysql
+import configparser
 
 
 class watchStockMarket:
@@ -19,10 +17,20 @@ class watchStockMarket:
     self.quotationSina = easyquotation.use('sina')
     ts.set_token('38bb3cd1b6af2d75a7d7e506db8fd60354168642b400fa2104af81c5') #设置tushare.token
     self.pro = ts.pro_api() 
+    #沪深A股股票代码转list供easyquotation调用
     self.tscodeData = self.pro.query('stock_basic', exchange='', list_status='L', fields='symbol')
-    self.stockList  = self.tscodeData['symbol'].tolist()                                      #沪深A股股票代码转list供easyquotation调用
+    self.stockList  = self.tscodeData['symbol'].tolist()                                      
+    #连接数据库
     self.connectQfq=pymysql.connect(host="192.168.151.216",port=3306,user="toshare1",password="toshare1",database="kday_qfq",charset='utf8')  
     self.connectStat=pymysql.connect(host="192.168.151.216",port=3306,user="toshare1",password="toshare1",database="statistics",charset='utf8') 
+
+    #读取config 
+    conf = configparser.ConfigParser()
+    conf.read('config.ini')              
+    # self.stockbasic_dir =self.conf.get('workDir','stockbasic_dir') 
+    
+    #获取昨日涨停个股列表
+    #  preUpLimitList=
 
   def GetConnectStat(self):
     # self.connectQfq=pymysql.connect(host="192.168.151.216",port=3306,user="toshare1",password="toshare1",database="kday_qfq",charset='utf8')  
@@ -32,6 +40,7 @@ class watchStockMarket:
 
 
   def getQqMarketData(self):              #获取新浪盘口数据
+   try: 
     data=self.quotationQq.stocks(self.stockList)
     df=pd.DataFrame.from_dict(data,orient='index')    
     df=df.reset_index()
@@ -49,37 +58,23 @@ class watchStockMarket:
     exesql=" insert into  watch_market (trade_time,ups,draws,downs,uplimits,downlimits) value (%s,%s,%s,%s,%s,%s)"
     curTruc.execute(exesql,(tradeTime,int(ups),int(draws),int(downs),int(uplimits),int(downlimits)))      
     self.connectStat.commit()
-    self.connectStat.close()  
+    self.connectStat.close() 
+   except:
+    pass   
 
+  def preUpLimitNow(self)  :
+    pass
 
-
-def main(): 
-    # 
-    # sql="select concat(LOWER(RIGHT(ts_code,2)), LEFT(ts_code,6)) as code from allKday_closed WHERE trade_date='2019-04-10' "
-    # tscodeDf=pd.read_sql(sql,con=connect)
-
-    # w.start() 
-    # print(quotationQq.real('sh603956'))
-    # quotationQq.stocks()
-    
-    watchMarket=watchStockMarket()  
-    while True:
-      watchMarket.getQqMarketData()
-      time.sleep(30)
+def main():   
+  pass
+    # watchMarket=watchStockMarket()  
+    # while True:
+    #   watchMarket.getQqMarketData()
+    #   time.sleep(30)
 
 
 if __name__ == '__main__':
   main()
-
-  quotationSina = easyquotation.use('sina')
-
-
-
-  data=quotationSina.market_snapshot(prefix=True) 
-  df=pd.DataFrame.from_dict(data,orient='index')
-  df=df.reset_index()
-  df.rename(columns={'index':'tscode'},inplace=True)
-  df=df.loc[df['tscode'].str.contains('sz00|sz30|sh60')]
-  df=df[(df['turnover']>0)]
-  print(df)
+  
+  
 
