@@ -69,13 +69,12 @@ class watchStockMarket:
     drawsOpen=df[df['now']-df['open']==0]['code'].count()            #较开盘平盘家数
     uplimits=df[df['涨停价']==df['now']]['code'].count() #涨停家数
     downlimits=df[df['跌停价']==df['now']]['code'].count() #涨停家数
-
-    
+    avgzf=df['涨跌(%)'].mean()     
     
     tradeTime=dt.now().strftime('%Y-%m-%d %H:%M:%S')
     curTruc=self.GetConnectStat()      
-    exesql=" insert into  watch_market (trade_time,ups,draws,downs,uplimits,downlimits,upsOpen,drawsOpen,downsOpen) value (%s,%s,%s,%s,%s,%s,%s,%s,%s)"
-    curTruc.execute(exesql,(tradeTime,int(ups),int(draws),int(downs),int(uplimits),int(downlimits),int(upsOpen),int(drawsOpen),int(downsOpen)))      
+    exesql=" insert into  watch_market (trade_time,ups,draws,downs,uplimits,downlimits,upsOpen,drawsOpen,downsOpen,avgZf) value (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+    curTruc.execute(exesql,(tradeTime,int(ups),int(draws),int(downs),int(uplimits),int(downlimits),int(upsOpen),int(drawsOpen),int(downsOpen),float(avgzf)))     
     self.connectStat.commit()
     self.connectStat.close() 
    except:
@@ -88,7 +87,7 @@ def main():
   pass
     # watchMarket=watchStockMarket()  
     # while True:
-    #   watchMarket.getQqMarketData()
+    # watchMarket.getQqMarketData()
     #   time.sleep(30)
 
 

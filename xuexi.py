@@ -26,10 +26,11 @@ today=yesterday.strftime('%Y-%m-%d')
 today = dt.now().strftime('%Y-%m-%d')                                      #初始化阅读日期
 sdate = dt.now().strftime("%Y-%m-%d-%H:%M:%S")
 home_handle = driver.current_window_handle                                 #登录后主页handle
-news=driver.find_element_by_xpath('//div[@id="Cds1ok08g8ns00"]')           #重要新闻链接地址
-study=driver.find_element_by_xpath('//div[@id="C4b17trj9ay600"]')          #学习时评链接地址
-zonghenew=driver.find_element_by_xpath('//div[@id="Cnr0zbz511qo0"]')       #综合新闻链接地址
+news=driver.find_element_by_xpath('//*[@id="231c"]/div/div/div/div/section/div/div/div/div[1]/div/div/div[1]/span')           #重要新闻链接地址
+study=driver.find_element_by_xpath('//*[@id="f657"]/div/div/div/div/section/div/div/div/div[1]/div/div/div[1]/span')          #学习时评链接地址
+zonghenew=driver.find_element_by_xpath('//*[@id="4d3a"]/div/div/div/div/section/div/div/div/div[1]/div/div/div[1]/span')       #综合新闻链接地址
 
+# //*[@id="231c"]/div/div/div/div/section/div/div/div/div[1]/div/div/div[2]/span
 while True:
   if read_times>7:                                 #阅读次数大于10，结束阅读
     break
