@@ -59,6 +59,7 @@ class MSSQL:
 
   def getDatetime(self):              #获取当天日期       
         taday = dt.now().strftime('%Y%m%d')
+        print(taday)
         return taday  
 
   def getTrade_cal(self):             #获取交易日、股票列表队列，用于多线程      
