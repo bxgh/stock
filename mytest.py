@@ -10,6 +10,12 @@ from WindPy import *
 import easyquotation
 import pymysql
 
+# w.start()
+# # data=w.wsd("000001.SZ","close,amt","2013-04-30", datetime.today()-timedelta(1))#取浦发银行收盘价等信息
+# data=w.wsd("600000.SH","close,amt", datetime.today()-timedelta(100))
+# print(data)
+
+
 quotationQq = easyquotation.use('qq')
 data=quotationQq.real(['603828'], prefix=True)
 df=pd.DataFrame.from_dict(data,orient='index')    
@@ -21,6 +27,7 @@ sql="select concat(LOWER(RIGHT(ts_code,2)), LEFT(ts_code,6)) as code from allKda
 tscodeDf=pd.read_sql(sql,con=connect)
 print(tscodeDf)
 # w.start()
+
 quotationQq = easyquotation.use('qq')
 quotationSina = easyquotation.use('sina')
 # easyquotation.update_stock_codes()
