@@ -119,7 +119,7 @@ class MSSQL:
      connectStr = "mysql+pymysql://"+self.user + ":" + self.pwd + "@" + self.host+ "/"+self.db+"?charset=utf8"  
     if self.mysqlormssql=='mssql':
      connectStr = "mssql+pymssql://"+self.user + ":" + self.pwd + "@" + self.host+ "/"+self.db+"?charset=utf8" 
-
+    connectStr = "mysql+pymysql://"+self.user + ":" + self.pwd + "@" + self.host+ "/"+self.db+"?charset=utf8"  
     # engine=create_engine("mysql+pymysql://toshare1:toshare1@192.168.151.213:3306/kday?charset=utf8",echo=True)                          
     engine=create_engine(connectStr,echo=True)    
     # cur=self.engine.cursor()
@@ -411,8 +411,8 @@ class MSSQL:
     yesterday=today-oneday
     cqtoday = today.strftime('%Y%m%d')
     cqyesterday = yesterday.strftime('%Y%m%d')
-    cqtoday='20190423'
-    cqyesterday='20190418'
+    # cqtoday='20190423'
+    # cqyesterday='20190418'
     df1 = self.pro.adj_factor(ts_code='', trade_date=cqyesterday)   #当天除权因子
     df2 = self.pro.adj_factor(ts_code='', trade_date=cqtoday)   #昨天除权因子
     df=pd.concat([df1,df2])
@@ -454,36 +454,24 @@ class MSSQL:
      for h5file in os.listdir(self.kdayH5_dir): 
        print(h5file)
        self.h5FileToH5QfqFile(h5file)
+  
+  
 
-
-  def saveH5ToSqlserver(self,FileName,engineListAppend) :    
-    stockFileName=self.allKdayDir + FileName
-    tablename = FileName[0:14]
-    h5 = pd.HDFStore(stockFileName,'r')
+  #h5前复权K线数据转mysql数据库初始化，清空后一次性转换所有数据，kdayH5Qfq_dir为H5前复权文件存放目录
+  def H5QfqDataToSqlDataInit(self) :    
+    for h5qfqfile in os.listdir(self.kdayH5Qfq_dir): 
+       h5qfqFileName=self.kdayH5Qfq_dir+h5qfqfile
+       print(h5qfqFileName)
+       self.H5QfqDataToSqlData(h5qfqFileName)
+  
+  #h5前复权K线数据转mysql数据，单文件转换，FileName为H5前复权文件
+  def  H5QfqDataToSqlData(self,FileName) :    
+    h5 = pd.HDFStore(FileName,'r')
     df = h5['data']
-    # engineListAppend= self.GetWriteConnect()     
-    dflen=len(df)  
-    i=0
-    if dflen<1001:
-      try:
-       df.to_sql(tablename,engineListAppend,if_exists='append',index=False,chunksize=1000) 
-      except:
-       h5.close()  
-       return 0 
-    else:
-      i1=int(dflen/1000)  
-      while i<i1+1 :
-        print(i)
-        dfi=df[i*1000:(i+1)*1000] 
-        print(dfi)
-        try:
-         dfi.to_sql(tablename,engineListAppend,if_exists='append',index=False,chunksize=1000)         
-        except:
-         h5.close()  
-         return 0
-        i=i+1
-    h5.close()      
-    return 1    
+    engineListAppend= self.GetWriteConnect()     
+    df.to_sql('daily_data',engineListAppend,if_exists='append',index=False,chunksize=1000) 
+    h5.close()  
+   
     
   def calcKdayHisDays (self)  :
     self.getFileQueue()    
@@ -521,17 +509,6 @@ class MSSQL:
     h5['data'] = dfresult      
     h5.close()      
   
-  def KdayHisGoOn(self) :
-    h5 = pd.HDFStore('.\kdayrest','r')
-    df1 = h5['data']
-    engineListAppend= self.GetWriteConnect()
-    for index, row in df1.iterrows():
-      filename=row["filename"]
-      SqlResult=self.saveH5ToSqlserver(filename,engineListAppend)           
-      if SqlResult==0:
-        print(filename)
-    h5.close()
-
   def kday_closed(self):
     wSql="INSERT into analysisUnit(ts_code,trade_date,`open`,`close`,high,low,pre_close,`change`,pct_chg,vol,amount)"
     wSql=wSql+" select * from allKday_closed "    
@@ -597,6 +574,8 @@ class MSSQL:
       except:
         pass   
   
+  def kdayClose(self,closeday):
+     pass
 
   def kday_getAllHis(self,closeday):
     df=self.pro.daily(trade_date=closeday)
@@ -973,8 +952,11 @@ def main():
   #   mskday.kday_getAllHis(trade_cal)
 
 if __name__ == '__main__':
-  mskday = MSSQL(host="192.168.151.216", user="toshare1", pwd="toshare1", db="kday_qfq",myOrms="mysql") 
+  mskday = MSSQL(host="192.168.151.216", user="toshare1", pwd="toshare1", db="kday",myOrms="mysql") 
+  # mskday.kdayCloseH5('20190424')
   mskday.kdayCloseH5qfq()
+  # mskday.H5QfqDataToSqlData('D:\\h5qfqdata\\kday_SH601857')
+  # mskday.H5QfqDataToSqlDataInit()
 
 
 

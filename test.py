@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
-import xlrd
+# import xlrd
 import os
 import pymssql
 import queue
@@ -13,13 +13,13 @@ import tushare as ts
 #     df = h5['data']
 #     df=df.set_index('trade_date') 
 #     print(df)
-#     h5.close()
+# #     h5.close()
 
-ts.set_token('38bb3cd1b6af2d75a7d7e506db8fd60354168642b400fa2104af81c5')
-pro = ts.pro_api()
+# ts.set_token('38bb3cd1b6af2d75a7d7e506db8fd60354168642b400fa2104af81c5')
+# pro = ts.pro_api()
 
-df1=ts.pro_bar(pro_api=pro, ts_code='603919.SH',start_date='20110909', end_date='20190423')  
-print(df1)
+# df1=ts.pro_bar(pro_api=pro, ts_code='603919.SH',start_date='20110909', end_date='20190423')  
+# print(df1)
 # df1 = pro.adj_factor(ts_code='', trade_date='20190419')
 # df2 = pro.adj_factor(ts_code='', trade_date='20190423')
 # df=pd.concat([df1,df2])
@@ -30,7 +30,7 @@ print(df1)
 # print(df)
 
 
-h5 = pd.HDFStore('D:\\h5data\\kday_SH603919_20160310_20190423','r')
+h5 = pd.HDFStore('D:\\h5qfqdata\\kday_SH601857','r')
 df = h5['data']
 df= df.sort_values('trade_date')
 print(df)
