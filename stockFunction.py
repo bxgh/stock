@@ -351,53 +351,84 @@ class MSSQL:
     tablename ='kday_'+tscode[7:9]+tscode[0:6]     
     print(tablename)
     if resultDf.size>0:
-      filename = self.kdayH5_dir + tablename + '_' + listDate + '_' + today        
+      filename = self.kdayH5_dir + tablename + '_' + listDate + '_' + today  
+      filenameRes= tablename + '_' + listDate + '_' + today     
       h5 = pd.HDFStore(filename,'w')
       h5['data'] = resultDf      
-      h5.close()     
+      h5.close() 
+    return filenameRes      
 
   #获取所有个股历史k线数据保存为h5文件（除权数据），需要45分钟左右
   def getAllHisKdaysH5 (self):
     '''获指所有股票数据__股票历史k线数据，截止到昨日'''
     for index, row in self.stockBasic.iterrows():
        ts_code=row["ts_code"]
-       self.getKdayH5(ts_code)
+       filename=self.getKdayH5(ts_code)
 
-  #收盘补充h5数据 ,入参：closeday:收盘日期(20190418)
+  #收盘补充h5qfq数据,入参：closeday:收盘日期(20190418)
   def kdayCloseH5(self,closeday): 
-   while True: 
-    df=self.pro.daily(trade_date=closeday)      
-    df1 = self.pro.query('adj_factor', trade_date=closeday)
-    print(df.size,df1.size)
-    if (df.size>0) & (df1.size>0): 
-      h5fileList=os.listdir(self.kdayH5_dir)
+   while True:                  #获取tushare当日收盘行情
+     try :
+       df=self.pro.daily(trade_date=closeday)
+       break
+     except:
+       time.sleep(120)  
+
+   while True:               
+    if df.size>0: 
+      h5fileList=os.listdir(self.kdayH5Qfq_dir)
       filelistDf=pd.DataFrame(h5fileList,columns=['fileName'])
       for index, row in df.iterrows():
         ts_code=row["ts_code"]                   #600618.SH
         loctscode=ts_code[7:9]+ts_code[0:6]      #SH600618
-        tsdf=df[df['ts_code']==ts_code]
-        dfFactor=df1[df1['ts_code']==ts_code]
-        dfRes=pd.merge(tsdf,dfFactor)
-        # print(dfRes)
+        dfRes=df[df['ts_code']==ts_code]       
+        # print(loctscode)
         try:
           tstemp=filelistDf.loc[filelistDf['fileName'].str.contains(loctscode)]
           h5fileName=tstemp.iloc[0,0]      
-          h5 = pd.HDFStore(self.kdayH5_dir+h5fileName,'r')
+          h5 = pd.HDFStore(self.kdayH5Qfq_dir+h5fileName,'r')
           h5His = h5['data']
+          # h5His.drop['adj_factor']
+          # h5His.drop(['adj_factor'],axis=1,inplace=True)
           resH5=pd.concat([h5His,dfRes])
           # print(resH5)
           h5.close()
-          h5 = pd.HDFStore(self.kdayH5_dir+h5fileName,'w') 
+          h5 = pd.HDFStore(self.kdayH5Qfq_dir+h5fileName,'w') 
           h5['data'] = resH5
           h5.close() 
           print(loctscode) 
         except: #新股
           h5fileName='kday_'+loctscode
-          h5 = pd.HDFStore(self.kdayH5_dir+h5fileName,'w') 
+          h5 = pd.HDFStore(self.kdayH5Qfq_dir+h5fileName,'w') 
           h5['data'] = dfRes
           h5.close() 
       break    
   
+  #收盘根据除权因子变化找到分红股票，重新导入前复权行情数据
+  def kdayCloseH5qfq(self):    
+    today=datetime.date.today() 
+    oneday=datetime.timedelta(days=1) 
+    yesterday=today-oneday
+    cqtoday = today.strftime('%Y%m%d')
+    cqyesterday = yesterday.strftime('%Y%m%d')
+    cqtoday='20190423'
+    cqyesterday='20190418'
+    df1 = self.pro.adj_factor(ts_code='', trade_date=cqyesterday)   #当天除权因子
+    df2 = self.pro.adj_factor(ts_code='', trade_date=cqtoday)   #昨天除权因子
+    df=pd.concat([df1,df2])
+    df=df.drop_duplicates(subset=['ts_code','adj_factor'],keep=False)  #去重，未除权的数据去掉
+    df=df[df['adj_factor']>1.000]                                   #去除新股
+    df=df[df['trade_date']==cqtoday]                                #留下最新日期除权数据
+    dfFenHong=df.sort_values('ts_code')
+    # print(dfFenHong)
+    for  index,row in dfFenHong.iterrows():
+       ts_code=row["ts_code"]
+      #  print(ts_code)
+       filename=self.getKdayH5(ts_code)
+       print(filename)
+       self.h5FileToH5QfqFile(filename)
+
+
   #h5原始行情数据转前复行情h5文件
   def h5FileToH5QfqFile(self,h5fileName):       
     h5 = pd.HDFStore(self.kdayH5_dir+h5fileName,'r')
@@ -677,34 +708,7 @@ class MSSQL:
         return False
 
   def test(self):
-    codeList=[]
-    connect=pymysql.connect(host=self.host,port=3306,user=self.user,password=self.pwd,database=self.db,charset='utf8') 
-    for index,row in self.stockBasic.iterrows():
-      dm=row['ts_code']   
-      # print(dm) 
-      sql='select * from `kday_'+dm+'`  order by trade_date desc '   
-      df=pd.read_sql(sql,con=connect)
-      if df.size>1 :        
-        preClose=df['pre_close'].iloc[0]
-        df.drop([0],inplace=True)        
-        for index,row in df.iterrows():       
-          close=row['close']
-          tscode=row['ts_code']               
-          tradeDate=row['trade_date']       
-          if abs(close-preClose)>0.1 and tradeDate>dt.strptime('2017-01-01','%Y-%m-%d').date():
-            print(tscode,close,preClose,tradeDate,abs(close-preClose))
-            codeList.append([tscode,tradeDate])            
-            break            
-          preClose=row['pre_close']  
-    print(codeList)  
-    result=pd.DataFrame(codeList)
-    print(result)
-    filename = 'c:\\ontimeKday\\qfqTscode.h5'   
-    h5 = pd.HDFStore(filename,'w')
-    h5['data']=result   
-    h5.close()
-    connect.close()
-    # print(codeList)
+    pass
 
   def analysisHis(self,closeday):
     engineListAppend= self.GetWriteConnect()
@@ -921,8 +925,9 @@ def main():
 
 
   mskday = MSSQL(host="192.168.151.216", user="toshare1", pwd="toshare1", db="kday_qfq",myOrms="mysql") 
-  mskday.h5dataToh5QfqInit()
-  mskday.kdayCloseH5('20190419')
+  mskday.kdayCloseH5qfq()
+  mskday.kdayCloseH5qfq()
+  mskday.kdayCloseH5('20190423')
   mskday.getAllHisKdaysH5()
 
   mskday.getMa('2019-04-16')
@@ -968,7 +973,8 @@ def main():
   #   mskday.kday_getAllHis(trade_cal)
 
 if __name__ == '__main__':
-  main()
+  mskday = MSSQL(host="192.168.151.216", user="toshare1", pwd="toshare1", db="kday_qfq",myOrms="mysql") 
+  mskday.kdayCloseH5qfq()
 
 
 
