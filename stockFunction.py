@@ -431,6 +431,7 @@ class MSSQL:
        filename=self.getKdayH5(ts_code)                             #重新获取最新历史数据，截止日期today
       #  print(filename)
        self.h5FileToH5QfqFile(filename)                             #将历史数据转为前复权数据，保存到h5qfq
+       filename=self.kdayH5Qfq_dir+filename[0:13]
        self.H5QfqDataToSqlData(filename,0)                          #将最新前复权数据存入mysql数据库，filename:'D:\h5qfqdata\kday_SH600396'
 
   #h5原始行情数据转前复行情h5文件
@@ -471,7 +472,7 @@ class MSSQL:
   
   #h5前复权K线数据转mysql数据，单文件转换，FileName为H5前复权文件:'D:\h5qfqdata\kday_SH600396',isinit:初始化1，收盘任务0
   def  H5QfqDataToSqlData(self,FileName,isinit) :    
-    if isinit!=1 : #如果执行收盘任务，要先删除原来该股票k线数据      
+    if isinit==0 : #如果执行收盘任务，要先删除原来该股票k线数据      
        ts_code=FileName[-6:]+'.'+FileName[-8:-6]
        sql="delete from daily_data where ts_code='"+ts_code+"'"
        curTruc=self.GetConnect()         
