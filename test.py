@@ -18,8 +18,9 @@ import tushare as ts
 # ts.set_token('38bb3cd1b6af2d75a7d7e506db8fd60354168642b400fa2104af81c5')
 # pro = ts.pro_api()
 
-# df1=ts.pro_bar(pro_api=pro, ts_code='603919.SH',start_date='20110909', end_date='20190423')  
-# print(df1)
+# # df1=ts.pro_bar(pro_api=pro, ts_code='603919.SH',start_date='20110909', end_date='20190423')  
+# df=pro.daily(trade_date='20190422')
+# print(df)
 # df1 = pro.adj_factor(ts_code='', trade_date='20190419')
 # df2 = pro.adj_factor(ts_code='', trade_date='20190423')
 # df=pd.concat([df1,df2])
@@ -30,7 +31,7 @@ import tushare as ts
 # print(df)
 
 
-h5 = pd.HDFStore('D:\\h5qfqdata\\kday_SH601857','r')
+h5 = pd.HDFStore('D:\\h5data\\kday_SH600000_19991110_20190425','r')
 df = h5['data']
 df= df.sort_values('trade_date')
 print(df)

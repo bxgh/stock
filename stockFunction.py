@@ -119,7 +119,7 @@ class MSSQL:
      connectStr = "mysql+pymysql://"+self.user + ":" + self.pwd + "@" + self.host+ "/"+self.db+"?charset=utf8"  
     if self.mysqlormssql=='mssql':
      connectStr = "mssql+pymssql://"+self.user + ":" + self.pwd + "@" + self.host+ "/"+self.db+"?charset=utf8" 
-    connectStr = "mysql+pymysql://"+self.user + ":" + self.pwd + "@" + self.host+ "/"+self.db+"?charset=utf8"  
+    # connectStr = "mysql+pymysql://"+self.user + ":" + self.pwd + "@" + self.host+ "/"+self.db+"?charset=utf8"  
     # engine=create_engine("mysql+pymysql://toshare1:toshare1@192.168.151.213:3306/kday?charset=utf8",echo=True)                          
     engine=create_engine(connectStr,echo=True)    
     # cur=self.engine.cursor()
@@ -315,9 +315,10 @@ class MSSQL:
     a = time.strptime(listDate,'%Y%m%d')
     datezone=15  #tushare pro 一次只能获取4000条数据，折合kday数据15年
     sYear = a.tm_year  
-    today = str(pd.Timestamp(dt.now())-pd.Timedelta(days = 1))[:10] #截止日期到昨日 
+    # today = str(pd.Timestamp(dt.now())-pd.Timedelta(days = 1))[:10] #截止日期到昨日 
+    today = dt.now().strftime('%Y%m%d')    
     eYear = today[:4]    
-    today = today[:4]+today[5:7]+today[8:10]
+    # today = today[:4]+today[5:7]+today[8:10]
     listInt = int((int(eYear)-int(sYear))/datezone)+1
     dataList = []    
     i=0
@@ -349,7 +350,7 @@ class MSSQL:
     resultDf=pd.concat(dataList)    
     resultDf=resultDf.sort_values('trade_date', ascending=True)      
     tablename ='kday_'+tscode[7:9]+tscode[0:6]     
-    print(tablename)
+    # print(tablename)
     if resultDf.size>0:
       filename = self.kdayH5_dir + tablename + '_' + listDate + '_' + today  
       filenameRes= tablename + '_' + listDate + '_' + today     
@@ -367,9 +368,12 @@ class MSSQL:
 
   #收盘补充h5qfq数据,入参：closeday:收盘日期(20190418)
   def kdayCloseH5(self,closeday): 
+   engineListAppend= self.GetWriteConnect() 
    while True:                  #获取tushare当日收盘行情
      try :
        df=self.pro.daily(trade_date=closeday)
+       df.to_sql('daily_data',engineListAppend,if_exists='append',index=False,chunksize=1000)  #收盘数据保存到mysql数据库
+       print(df['ts_code'].size)
        break
      except:
        time.sleep(120)  
@@ -404,14 +408,14 @@ class MSSQL:
           h5.close() 
       break    
   
-  #收盘根据除权因子变化找到分红股票，重新导入前复权行情数据
+  #收盘根据除权因子变化找到分红股票，重新导入前复权行情数据,不需要传日期参数，默认为当天为最新日期
   def kdayCloseH5qfq(self):    
     today=datetime.date.today() 
     oneday=datetime.timedelta(days=1) 
     yesterday=today-oneday
-    cqtoday = today.strftime('%Y%m%d')
-    cqyesterday = yesterday.strftime('%Y%m%d')
-    # cqtoday='20190423'
+    cqtoday = today.strftime('%Y%m%d')              #今天
+    cqyesterday = yesterday.strftime('%Y%m%d')      #跟昨天复权因子相比
+    # cqtoday='20190424'
     # cqyesterday='20190418'
     df1 = self.pro.adj_factor(ts_code='', trade_date=cqyesterday)   #当天除权因子
     df2 = self.pro.adj_factor(ts_code='', trade_date=cqtoday)   #昨天除权因子
@@ -423,11 +427,11 @@ class MSSQL:
     # print(dfFenHong)
     for  index,row in dfFenHong.iterrows():
        ts_code=row["ts_code"]
-      #  print(ts_code)
-       filename=self.getKdayH5(ts_code)
-       print(filename)
-       self.h5FileToH5QfqFile(filename)
-
+       print(ts_code)
+       filename=self.getKdayH5(ts_code)                             #重新获取最新历史数据，截止日期today
+      #  print(filename)
+       self.h5FileToH5QfqFile(filename)                             #将历史数据转为前复权数据，保存到h5qfq
+       self.H5QfqDataToSqlData(filename,0)                          #将最新前复权数据存入mysql数据库，filename:'D:\h5qfqdata\kday_SH600396'
 
   #h5原始行情数据转前复行情h5文件
   def h5FileToH5QfqFile(self,h5fileName):       
@@ -459,17 +463,26 @@ class MSSQL:
 
   #h5前复权K线数据转mysql数据库初始化，清空后一次性转换所有数据，kdayH5Qfq_dir为H5前复权文件存放目录
   def H5QfqDataToSqlDataInit(self) :    
+    isinit=1
     for h5qfqfile in os.listdir(self.kdayH5Qfq_dir): 
        h5qfqFileName=self.kdayH5Qfq_dir+h5qfqfile
        print(h5qfqFileName)
-       self.H5QfqDataToSqlData(h5qfqFileName)
+       self.H5QfqDataToSqlData(h5qfqFileName,isinit)
   
-  #h5前复权K线数据转mysql数据，单文件转换，FileName为H5前复权文件
-  def  H5QfqDataToSqlData(self,FileName) :    
-    h5 = pd.HDFStore(FileName,'r')
+  #h5前复权K线数据转mysql数据，单文件转换，FileName为H5前复权文件:'D:\h5qfqdata\kday_SH600396',isinit:初始化1，收盘任务0
+  def  H5QfqDataToSqlData(self,FileName,isinit) :    
+    if isinit!=1 : #如果执行收盘任务，要先删除原来该股票k线数据      
+       ts_code=FileName[-6:]+'.'+FileName[-8:-6]
+       sql="delete from daily_data where ts_code='"+ts_code+"'"
+       curTruc=self.GetConnect()         
+       curTruc.execute(sql)
+       self.connect.commit()
+       self.connect.close() 
+    
+    h5 = pd.HDFStore(FileName,'r')   #读取H5qfq数据
     df = h5['data']
     engineListAppend= self.GetWriteConnect()     
-    df.to_sql('daily_data',engineListAppend,if_exists='append',index=False,chunksize=1000) 
+    df.to_sql('daily_data',engineListAppend,if_exists='append',index=False,chunksize=1000) #存入mysql数据库
     h5.close()  
    
     
@@ -573,9 +586,7 @@ class MSSQL:
         T=False 
       except:
         pass   
-  
-  def kdayClose(self,closeday):
-     pass
+    
 
   def kday_getAllHis(self,closeday):
     df=self.pro.daily(trade_date=closeday)
@@ -953,8 +964,10 @@ def main():
 
 if __name__ == '__main__':
   mskday = MSSQL(host="192.168.151.216", user="toshare1", pwd="toshare1", db="kday",myOrms="mysql") 
-  # mskday.kdayCloseH5('20190424')
+  # mskday.getKdayH5('600000.SH')
   mskday.kdayCloseH5qfq()
+  # mskday.kdayCloseH5('20190425')
+  # mskday.kdayCloseH5qfq()
   # mskday.H5QfqDataToSqlData('D:\\h5qfqdata\\kday_SH601857')
   # mskday.H5QfqDataToSqlDataInit()
 
