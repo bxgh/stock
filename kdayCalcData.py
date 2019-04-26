@@ -64,3 +64,64 @@ def ExecQuery(self,sql):
     return resList  
 
 
+def getMa(self,maDate):    #计算均线 ，参数说明：maDate为均线计算日期，即收盘日期   
+    edate=datetime.datetime.strptime(maDate, '%Y-%m-%d')
+    sdate1 = edate +  datetime.timedelta(-400)
+    sdate=dt.strftime(sdate1,'%Y-%m-%d')    
+    
+
+    for tscode1 in tscodeDf['ts_code']:      
+      # print(tscode1)
+      sql1="SELECT * from `kday_"+tscode1+"` ORDER BY trade_date "   #获取股票kday数据
+      # print(sql1)
+      result1=self.ExecQuery(sql1)
+      # print(result1)
+      kdayData=pd.DataFrame(result1,columns=['ts_code','trade_date','open','close','high','low','pre_close','change','pct_chg','vol','amount'])   
+      kdayData['highHis']=kdayData['high'].max() 
+      print(kdayData)
+      dfHis= kdayData.tail(1) 
+      print(dfHis)
+      if tscode1==firstCode :  #'000001.SZ' :
+          res1=dfHis
+      else:                
+          res=res.append(df1)
+
+
+      sql="SELECT * from `kday_"+tscode1+"` where trade_date >'"+sdate+"'  and trade_date<="+ "'"+maDate+"'"+" ORDER BY trade_date "   #获取股票kday数据
+      result=self.ExecQuery(sql)
+      df=pd.DataFrame(result,columns=['ts_code','trade_date','open','close','high','low','pre_close','change','pct_chg','vol','amount'])   
+      
+      try:
+         tradeDate=str(df.tail(1).iloc[0,1]) 
+        #  tradeDate='2019-03-29' 
+      except:
+         tradeDate='1970-01-01'  
+      # print(tradeDate,tradeDate==str(maDate))         
+      if tradeDate==str(maDate):         #剔除停牌股票
+        df['ma3']=df['close'].rolling(3).mean()    #计算均线
+        df['ma5']=df['close'].rolling(5).mean()
+        df['ma10']=df['close'].rolling(10).mean()
+        df['ma20']=df['close'].rolling(20).mean()
+        df['ma30']=df['close'].rolling(30).mean()
+        df['ma60']=df['close'].rolling(60).mean()
+        df['ma120']=df['close'].rolling(120).mean()
+        df['ma250']=df['close'].rolling(250).mean()      
+
+        df['high3']=df['high'].rolling(3).max() 
+        df['high5']=df['high'].rolling(5).max()
+        df['high10']=df['high'].rolling(10).max()
+        df['high20']=df['high'].rolling(20).max()
+        df['high30']=df['high'].rolling(30).max()
+        df['high60']=df['high'].rolling(60).max()
+        df['highMax']=df['high'].max()
+        df1= df.tail(1)    
+        if tscode1==firstCode :  #'000001.SZ' :
+          res=df1
+        else:                
+          res=res.append(df1)
+    print(res)  
+    filename = 'C:\\ontimeKday\\ma\\'+maDate+'.h5'   #保存结果到h5文件
+    h5 = pd.HDFStore(filename,'w')
+    h5['data'] = res      
+    h5.close() 
+    

@@ -967,7 +967,7 @@ if __name__ == '__main__':
   mskday = MSSQL(host="192.168.151.216", user="toshare1", pwd="toshare1", db="kday",myOrms="mysql") 
   # mskday.getKdayH5('600000.SH')
   mskday.kdayCloseH5qfq()
-  # mskday.kdayCloseH5('20190425')
+  mskday.kdayCloseH5('20190425')
   # mskday.kdayCloseH5qfq()
   # mskday.H5QfqDataToSqlData('D:\\h5qfqdata\\kday_SH601857')
   # mskday.H5QfqDataToSqlDataInit()
