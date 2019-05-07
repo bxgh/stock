@@ -1,23 +1,15 @@
-import configparser
 import datetime
-import logging
 import os
-import queue
-import random
-import threading
 import time
 import timeit
 from datetime import datetime as dt
-from decimal import Decimal
-from io import StringIO
-from queue import LifoQueue
 from time import sleep
 import numpy as np
 import pandas as pd
 import pymysql
 import tushare as ts
 from sqlalchemy import create_engine
-import pymssql
+
 
 #获取昨天新闻联播内容，每天早上6:00执行
 ts.set_token('38bb3cd1b6af2d75a7d7e506db8fd60354168642b400fa2104af81c5') #设置tushare.token
