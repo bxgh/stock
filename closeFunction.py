@@ -12,13 +12,11 @@ from decimal import Decimal
 from io import StringIO
 from queue import LifoQueue
 from time import sleep
-
 import numpy as np
 import pandas as pd
 import pymysql
 import tushare as ts
 from sqlalchemy import create_engine
-
 import pymssql
 
 
@@ -85,12 +83,18 @@ class MSSQL:
         return taday  
 
   def getTrade_cal(self):             #获取交易日、股票列表队列，用于多线程      
-        trade_cal = self.pro.query('trade_cal', exchange='SZSE', start_date=self.getDatetime(),
+        trade_cal = self.pro.query('trade_cal', exchange='SZSE', start_date='20190101',
                                    end_date=self.getDatetime(), is_open=1)
-        #将日期列转换为list，便于使用队列
+        #将日期列转换为list，便于使用队列    
+        # print(trade_cal)            
         trade_cals = trade_cal['cal_date'].tolist()
+                   
+        self.cqtoday=str(trade_cal.tail(1).iloc[0,1])
+        self.cqyesterday=str(trade_cal.tail(2).iloc[0,1])
+        print(self.cqtoday,self.cqyesterday)
         for trade_cal in trade_cals:
             self.trade_cal_queue.put(trade_cal, True, 2)   
+
         #股票代码存入队列
         stcodes=self.stockBasic
         stocksList=stcodes['ts_code'].tolist()
@@ -267,26 +271,35 @@ class MSSQL:
           h5.close() 
       break    
   
+
   #收盘根据除权因子变化找到分红股票，重新导入前复权行情数据,不需要传日期参数，默认为当天为最新日期
   def kdayCloseH5qfq(self):    
-    today=datetime.date.today() 
-    oneday=datetime.timedelta(days=1) 
-    yesterday=today-oneday
-    cqtoday = today.strftime('%Y%m%d')              #今天
-    cqyesterday = yesterday.strftime('%Y%m%d')      #跟昨天复权因子相比
+    # today=datetime.date.today() 
+    # oneday=datetime.timedelta(days=1) 
+    # yesterday=today-oneday
+    # cqtoday = today.strftime('%Y%m%d')              #今天
+    # cqyesterday = yesterday.strftime('%Y%m%d')      #跟昨天复权因子相比
     # cqtoday='20190424'
     # cqyesterday='20190418'
+    chuquan_queue=LifoQueue()
     while True:
       try :
-        df1 = self.pro.adj_factor(ts_code='', trade_date=cqyesterday)   #当天除权因子
-        df2 = self.pro.adj_factor(ts_code='', trade_date=cqtoday)   #昨天除权因子  
+        df1 = self.pro.adj_factor(ts_code='', trade_date=self.cqyesterday)   #当天除权因子
+        df2 = self.pro.adj_factor(ts_code='', trade_date=self.cqtoday)   #昨天除权因子  
         df=pd.concat([df1,df2])
         df=df.drop_duplicates(subset=['ts_code','adj_factor'],keep=False)  #去重，未除权的数据去掉
         df=df[df['adj_factor']>1.000]                                   #去除新股
-        df=df[df['trade_date']==cqtoday]                                #留下最新日期除权数据
-        dfFenHong=df.sort_values('ts_code')        
-        for  index,row in dfFenHong.iterrows():
-            ts_code=row["ts_code"]
+        df=df[df['trade_date']==self.cqtoday]                                #留下最新日期除权数据
+        dfFenHong=df.sort_values('ts_code')     
+        stocksList=dfFenHong['ts_code'].tolist()
+        #除权股票代码塞进队列中
+        for stcodes in stocksList:
+            chuquan_queue.put(stcodes, True, 2)   
+
+        # for  index,row in dfFenHong.iterrows():
+        while not chuquan_queue.empty():
+            # ts_code=row["ts_code"]
+            ts_code=chuquan_queue.get(True,2)
             # print(ts_code)
             filename=self.getKdayH5(ts_code)                             #重新获取最新历史数据，截止日期today
             #  print(filename)
@@ -295,7 +308,10 @@ class MSSQL:
             self.H5QfqDataToSqlData(filename,0)                          #将最新前复权数据存入mysql数据库，filename:'D:\h5qfqdata\kday_SH600396',0:收盘作业
         break    
       except:
+        if len(ts_code)>0 :
+          chuquan_queue.put(ts_code, True, 2)  
         time.sleep(121) 
+        
   #h5原始行情数据转前复行情h5文件
   def h5FileToH5QfqFile(self,h5fileName):       
     h5 = pd.HDFStore(self.kdayH5_dir+h5fileName,'r')
@@ -346,16 +362,81 @@ class MSSQL:
     engineListAppend= self.GetWriteConnect()     
     df.to_sql('daily_data',engineListAppend,if_exists='append',index=False,chunksize=1000)  #存入mysql数据库 
     h5.close()  
-   
+
+  def kdayCloseH5Only(self,closeday):    
+   while True:                  
+     try :
+       df=self.pro.daily(trade_date=closeday)       
+       break
+     except:
+       time.sleep(120)  
+
+   while True:               
+    if df.size>0: 
+      h5fileList=os.listdir(self.kdayH5Qfq_dir)
+      filelistDf=pd.DataFrame(h5fileList,columns=['fileName'])
+      for index, row in df.iterrows():
+        ts_code=row["ts_code"]                   #600618.SH
+        loctscode=ts_code[7:9]+ts_code[0:6]      #SH600618
+        dfRes=df[df['ts_code']==ts_code]    
+        try:
+          tstemp=filelistDf.loc[filelistDf['fileName'].str.contains(loctscode)]
+          h5fileName=tstemp.iloc[0,0]      
+          h5 = pd.HDFStore(self.kdayH5Qfq_dir+h5fileName,'r')
+          h5His = h5['data']          
+          resH5=pd.concat([h5His,dfRes])          
+          h5.close()
+          h5 = pd.HDFStore(self.kdayH5Qfq_dir+h5fileName,'w') 
+          h5['data'] = resH5
+          h5.close() 
+          print(loctscode) 
+        except: #新股
+          h5fileName='kday_'+loctscode
+          h5 = pd.HDFStore(self.kdayH5Qfq_dir+h5fileName,'w') 
+          h5['data'] = dfRes
+          h5.close() 
+      break    
+  
+  #收盘根据除权因子变化找到分红股票，重新导入前复权行情数据,不需要传日期参数，默认为当天为最新日期,数据不入库，供本地使用
+  def kdayCloseH5qfqOnly(self):    
+    # today=datetime.date.today() 
+    # oneday=datetime.timedelta(days=1) 
+    # yesterday=today-oneday
+    # cqtoday = today.strftime('%Y%m%d')              #今天
+    # cqyesterday = yesterday.strftime('%Y%m%d')      #跟昨天复权因子相比
+    # cqtoday='20190424'
+    # cqyesterday='20190426'
+    # print(self.cqtoday)
+    while True:
+      try :
+        df1 = self.pro.adj_factor(ts_code='', trade_date=self.cqyesterday)   #当天除权因子
+        df2 = self.pro.adj_factor(ts_code='', trade_date=self.cqtoday)   #昨天除权因子  
+        df=pd.concat([df1,df2])
+        df=df.drop_duplicates(subset=['ts_code','adj_factor'],keep=False)  #去重，未除权的数据去掉
+        df=df[df['adj_factor']>1.000]                                   #去除新股
+        df=df[df['trade_date']==self.cqtoday]                                #留下最新日期除权数据
+        dfFenHong=df.sort_values('ts_code')        
+        for  index,row in dfFenHong.iterrows():
+            ts_code=row["ts_code"]
+            print(ts_code)
+            filename=self.getKdayH5(ts_code)                             #重新获取最新历史数据，截止日期today
+            #  print(filename)
+            self.h5FileToH5QfqFile(filename)                             #将历史数据转为前复权数据，保存到h5qfq           
+        break    
+      except:
+        time.sleep(121) 
+     
+
 def main():  
     pass
  
 if __name__ == '__main__':
-  main()
-#   mskday = MSSQL(host="192.168.151.216", user="toshare1", pwd="toshare1", db="kday",myOrms="mysql") 
-#   mskday.getKdayH5('600000.SH')
-#   mskday.kdayCloseH5qfq()
-  mskday.kdayCloseH5('20190426')
+#   main()
+  mskday = MSSQL(host="192.168.151.216", user="toshare1", pwd="toshare1", db="kday",myOrms="mysql") 
+  
+#   mskday.kdayCloseH5Only('20190430') 
+  # mskday.kdayCloseH5qfqOnly()     
+
+  mskday.kdayCloseH5('20190507')
   mskday.kdayCloseH5qfq()
-  # mskday.H5QfqDataToSqlData('D:\\h5qfqdata\\kday_SH601857')
-  # mskday.H5QfqDataToSqlDataInit()
+  
