@@ -54,8 +54,7 @@ class MSSQL:
     self.stockBasic = self.pro.stock_basic(exchange='',fields='ts_code,symbol,name,area,industry,fullname,enname,market,exchange,curr_type,list_status,list_date,delist_date,is_hs')  
     self.isNotTradeDay()                #获取是否交易日
     self.getTrade_cal()                 #初始化交易日期队列、股票代码队列
-    # if self.isTradeDay==1:
-    self.createTables('','kday_')
+    # if self.isTradeDay==1:    
     self.stockBasic() 
 
   def log(self):
@@ -87,11 +86,10 @@ class MSSQL:
                                    end_date=self.getDatetime(), is_open=1)
         #将日期列转换为list，便于使用队列    
         # print(trade_cal)            
-        trade_cals = trade_cal['cal_date'].tolist()
-                   
-        self.cqtoday=str(trade_cal.tail(1).iloc[0,1])
-        self.cqyesterday=str(trade_cal.tail(2).iloc[0,1])
-        print(self.cqtoday,self.cqyesterday)
+        trade_cals = trade_cal['cal_date'].tolist()                   
+        self.cqtoday=str(trade_cal.tail(1).iloc[0,1])      #除权用日期
+        self.cqyesterday=str(trade_cal.tail(2).iloc[0,1])  #除权用日期
+        # print(self.cqtoday,self.cqyesterday)
         for trade_cal in trade_cals:
             self.trade_cal_queue.put(trade_cal, True, 2)   
 
@@ -239,7 +237,7 @@ class MSSQL:
         #  print(df['ts_code'].size)
        break
      except:
-       time.sleep(120)  
+       time.sleep(300)  
 
    while True:               
     if df.size>0: 
@@ -258,6 +256,7 @@ class MSSQL:
           # h5His.drop['adj_factor']
           # h5His.drop(['adj_factor'],axis=1,inplace=True)
           resH5=pd.concat([h5His,dfRes])
+          resH5.drop_duplicates(subset=['trade_date'],keep='first',inplace=True) 
           # print(resH5)
           h5.close()
           h5 = pd.HDFStore(self.kdayH5Qfq_dir+h5fileName,'w') 
@@ -385,6 +384,7 @@ class MSSQL:
           h5 = pd.HDFStore(self.kdayH5Qfq_dir+h5fileName,'r')
           h5His = h5['data']          
           resH5=pd.concat([h5His,dfRes])          
+          resH5.drop_duplicates(subset=['trade_date'],keep='first',inplace=True) 
           h5.close()
           h5 = pd.HDFStore(self.kdayH5Qfq_dir+h5fileName,'w') 
           h5['data'] = resH5
@@ -409,6 +409,7 @@ class MSSQL:
     # print(self.cqtoday)
     while True:
       try :
+        # self.cqyesterday='20190430'
         df1 = self.pro.adj_factor(ts_code='', trade_date=self.cqyesterday)   #当天除权因子
         df2 = self.pro.adj_factor(ts_code='', trade_date=self.cqtoday)   #昨天除权因子  
         df=pd.concat([df1,df2])
@@ -428,15 +429,19 @@ class MSSQL:
      
 
 def main():  
-    pass
+  mskday = MSSQL(host="192.168.151.216", user="toshare1", pwd="toshare1", db="kday",myOrms="mysql")  
+  if mskday.isTradeDay==1 :
+    closeDay=mskday.getDatetime()    
+    mskday.kdayCloseH5(closeDay)
+    mskday.kdayCloseH5qfq()
  
 if __name__ == '__main__':
-#   main()
-  mskday = MSSQL(host="192.168.151.216", user="toshare1", pwd="toshare1", db="kday",myOrms="mysql") 
+  main()
+  # mskday = MSSQL(host="192.168.151.216", user="toshare1", pwd="toshare1", db="kday",myOrms="mysql") 
   
-#   mskday.kdayCloseH5Only('20190430') 
+  # mskday.kdayCloseH5Only('20190508') 
   # mskday.kdayCloseH5qfqOnly()     
 
-  mskday.kdayCloseH5('20190507')
-  mskday.kdayCloseH5qfq()
+  # mskday.kdayCloseH5('20190507')
+  # mskday.kdayCloseH5qfq()
   
