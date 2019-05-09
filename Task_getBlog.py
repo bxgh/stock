@@ -48,9 +48,9 @@ while True:
 
     dfnews=pd.DataFrame(nameList,columns=['ID'])
     dfnews['address']=dfnews.apply(lambda x :blogHome+x['ID']+".html",axis=1)
+    blogDf=pd.merge(dfnews,blogDf,on=['address'])
     df=pd.concat([blogDf,dfnews]) 
-    df=df.drop_duplicates(subset='address',keep=False)            #最新博客文章地址列表
-
+    df=df.drop_duplicates(subset='address',keep=False)            #最新博客文章地址列表    
 
     for index,row in df.iterrows():  
       blogurl=row['address']                                     #address
