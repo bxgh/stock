@@ -58,6 +58,7 @@ while True:
       driver.execute_script('window.scrollTo(0,10000)') 
       blogbody=driver.find_element_by_class_name('articleBody')   #获取博客内容
       blogOuthtml=blogbody.get_attribute('outerHTML')                  #content
+      blogOuthtml=blogOuthtml.replace('16px','32px')
       blogTitle=driver.find_element_by_class_name('articleTitle').text #title  
       blogTime=driver.find_element_by_class_name('time').text          #datetime 
       blogTitle=blogTitle.replace(blogTime,'')                  #处理结果
