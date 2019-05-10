@@ -43,7 +43,8 @@ class MSSQL:
     
     #股票交易代码list
     # self.stockBasic = self.pro.stock_basic(exchange='',fields='ts_code,symbol,name,area,industry,fullname,enname,market,exchange,curr_type,list_status,list_date,delist_date,is_hs')  
-    self.stockBasic = self.pro.stock_basic(exchange='', list_status='L', fields='ts_code,symbol,name,area,industry,list_date')
+    self.stockBasic = self.pro.stock_basic(exchange='',fields='ts_code,symbol,name,area,industry,fullname,enname,market,exchange,curr_type,list_status,list_date,delist_date,is_hs')  
+    self.setStockList()
     self.isNotTradeDay()                #获取是否交易日
     self.getTrade_cal()                 #初始化交易日期队列、股票代码队列    
     self.conf = configparser.ConfigParser()
@@ -147,24 +148,40 @@ class MSSQL:
     return list(resList)  
 
   def setStockList(self):    
-    #每日更新最新股票列表
-    #清空股票列表
-    curTruc=self.GetConnect()    
-    curTruc.execute("truncate table  stock_basic")
-    self.connect.commit()
-    self.connect.close()  
-    #获取最新股票列表
-    engineListAppend= self.GetWriteConnect()
-    #导入股票列表到数据库
-    self.stockBasic.to_sql('stock_basic',engineListAppend,if_exists='append',index=False,chunksize=1000)    
+    #每日更新最新股票列表  
+    while True:
+      try:
+        tradeCalDf = self.pro.query('trade_cal', exchange='SZSE',is_open=1)
+        stockBasicDf = self.pro.stock_basic(exchange='',fields='ts_code,symbol,name,area,industry,fullname,enname,market,exchange,curr_type,list_status,list_date,delist_date,is_hs')  
+        break
+      except:
+        sleep(121)  
     
-    curTruc=self.GetConnect()    
-    curTruc.execute("truncate table  trade_cal")
-    self.connect.commit()
-    self.connect.close() 
-    df = self.pro.trade_cal(exchange='', start_date='19910101', end_date='')
-    df.to_sql('trade_cal',engineListAppend,if_exists='append',index=False,chunksize=1000)      
-    return  
+
+    engineListAppend= self.GetWriteConnect()
+    readSql = 'select * from stock_basic'
+    tsCodeDf = pd.read_sql_query(readSql,con = engineListAppend)
+    #导入股票列表到数据库     
+    df=pd.concat([tsCodeDf,stockBasicDf])
+    df=df.drop_duplicates(subset=['ts_code'],keep=False)
+    if df.size>0 :
+      df.to_sql('stock_basic',engineListAppend,if_exists='append',index=False,chunksize=1000)   
+    
+    readSql = 'select * from trade_cal'
+    calDf = pd.read_sql_query(readSql,con = engineListAppend)
+    #导入股票列表到数据库     
+    df1=pd.concat([tradeCalDf,calDf])
+    df1=df1.drop_duplicates(subset=['cal_date'],keep=False)
+    if df1.size>0 :
+      df1.to_sql('trade_cal',engineListAppend,if_exists='append',index=False,chunksize=1000)   
+    
+
+    # curTruc=self.GetConnect()    
+    # curTruc.execute("truncate table  trade_cal")
+    # self.connect.commit()
+    # self.connect.close() 
+    # df = self.pro.trade_cal(exchange='', start_date='19910101', end_date='')
+    # df.to_sql('trade_cal',engineListAppend,if_exists='append',index=False,chunksize=1000)            
 
   def createTable(self,tableKind,tableName):
     # 生成表,使用sqlserver存储过程实现（createTable）
@@ -902,8 +919,10 @@ class MSSQL:
       
     #  print(dm+' is ok !')
     
-
-  
+  def getNews(self) :
+    engineListAppend= self.GetWriteConnect()
+    df = self.pro.news(src='sina', start_date='20190501', end_date='20190502')
+    df.to_sql('news',engineListAppend,if_exists='append',index=False,chunksize=1000)  
 
 def main():  
   # maDir='c:\\ontimeKday\\ma\\'
@@ -965,8 +984,10 @@ def main():
 
 if __name__ == '__main__':
   mskday = MSSQL(host="192.168.151.216", user="toshare1", pwd="toshare1", db="kday",myOrms="mysql") 
+  mskday.getNews()
+  # mskday.setStockList()
   # mskday.getKdayH5('600000.SH')
-  mskday.kdayCloseH5qfq()
+  # mskday.kdayCloseH5qfq()
   mskday.kdayCloseH5('20190425')
   # mskday.kdayCloseH5qfq()
   # mskday.H5QfqDataToSqlData('D:\\h5qfqdata\\kday_SH601857')
