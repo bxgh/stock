@@ -6,6 +6,22 @@ import pymssql
 import queue
 from sqlalchemy import create_engine
 import tushare as ts
+import django
+import easyquotation
+
+quotationQq = easyquotation.use('qq')
+result=quotationQq.stocks('600519')
+data=result['600519']
+data=quotationQq.real('600519')
+print(data)
+
+tscode='603039' 
+tsdm='sh'+tscode+'.js'
+quotation = easyquotation.use("timekline")
+df = quotation.real([tscode], prefix=True) 
+data =df[tsdm]
+data['yestclose']=65.4
+print(data)
 
 # for h5file in os.listdir('D:\\h5data\\'): 
 #     h5file1='D:\\h5data\\'+h5file    
@@ -15,12 +31,15 @@ import tushare as ts
 #     print(df)
 # #     h5.close()
 
-# ts.set_token('38bb3cd1b6af2d75a7d7e506db8fd60354168642b400fa2104af81c5')
+ts.set_token('38bb3cd1b6af2d75a7d7e506db8fd60354168642b400fa2104af81c5')
+pro = ts.pro_api()
+# df = pro.cctv_news(date='20190506')
 # pro = ts.pro_api()
-
-# # df1=ts.pro_bar(pro_api=pro, ts_code='603919.SH',start_date='20110909', end_date='20190423')  
-# df=pro.daily(trade_date='20190422')
+# df = pro.news(src='sina', start_date='20190401', end_date='20190430')
 # print(df)
+df1=ts.pro_bar(api=pro, ts_code='603919.SH',freq='m',start_date='20190517', end_date='20190517')  
+# df=pro.daily(trade_date='20190506')
+print(df1)
 # df1 = pro.adj_factor(ts_code='', trade_date='20190419')
 # df2 = pro.adj_factor(ts_code='', trade_date='20190423')
 # df=pd.concat([df1,df2])
@@ -31,10 +50,22 @@ import tushare as ts
 # print(df)
 
 
-h5 = pd.HDFStore('D:\\h5data\\kday_SH600000_19991110_20190425','r')
+h5 = pd.HDFStore('testdf0430','r')
 df = h5['data']
-df= df.sort_values('trade_date')
-print(df)
+# df= df.sort_values('trade_date')
+
+df['maxZf'] = df.apply(lambda x :round((x['highest']-x['lowest'])/x['lowest']*100,2),axis=1)
+df['lostZf'] = df.apply(lambda x :round((x['highest']-x['lowest1'])/x['highest']*100,2),axis=1)
+df['tscode'] = df.apply(lambda x :x['ts_code'][0:6],axis=1)
+df=df.sort_values('lostZf')
+# print(df)
+# df=df[(df['highestDate']>df['lowestDate']) ]
+# df=df[df['ts_code']=='300176.SZ']
+df=df[(df['lowerDateDiff1']<5) & (df['lostZf']>35) &(df['lowest1']!=-1)]
+# df=df[(df['lowest1']==-1) & (df['pct_chg']<0) &(df['lowerDateDiff']<10)]
+res=df['ts_code'].tolist()
+# df['tscode'].to_excel("tscode0430.xlsx")
+print(df[['ts_code','highest','lowest','lowest1','low','close','maxZf','lostZf','highDateDiff','lowerDateDiff','lowerDateDiff1','pct_chg']])
 df['ma3']=df['close'].rolling(3).mean()    #计算均线
 df['ma5']=df['close'].rolling(5).mean()
 df['ma10']=df['close'].rolling(10).mean()

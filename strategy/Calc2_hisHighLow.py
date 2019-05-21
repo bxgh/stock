@@ -1,20 +1,20 @@
 import time
 from datetime import datetime as dt
+import datetime
 import os
 import pymysql
 import pandas as pd
 import numpy as np
 import tushare as ts
-from io import StringIO
 from sqlalchemy import create_engine
-import logging
 from time import sleep
-from queue import LifoQueue
-import queue
-import threading
 import random
-import basewin
 import timeit
+import configparser
+
+#计算区间：起始日期：2018-10-01，结束日期：最新收盘
+#计算指标：区间股票最高涨幅，最高价格所在日期，最高价格离收盘日期差，(收盘价格-最高价格)
+#计算理论：计算区间内涨跌幅边际
 
 class CALCDATA:
   def __init__(self,host,user,pwd,db):
@@ -23,18 +23,15 @@ class CALCDATA:
     self.host=host                     #获取数据库连接字符串
     self.user=user
     self.pwd=pwd
-    self.db=db
-    self.hisDate_queue = LifoQueue()    #股票历史日期数据，用于分期获取数据
-    self.trade_cal_queue = LifoQueue()  #初始化交易日队列
-    self.stockBasic_queue = LifoQueue() #初始化股票代码队列
-    self.file_queue = queue.Queue()       #kday文件列表队列，用于读取hdf5数据转存到sqlserver
-    self.statustotal=0                  #初始化进度条
+    self.db=db    
     self.isTradeDay=1                   #是否交易日
-    self.isKdayClosed=0                 #当天是否执行日线收盘作业
-    self.allKdayDir='./kday/'
     #股票交易代码list
     self.stockBasic = self.pro.stock_basic(exchange='',fields='ts_code,symbol,name,area,industry,fullname,enname,market,exchange,curr_type,list_status,list_date,delist_date,is_hs')      
-   
+    self.conf = configparser.ConfigParser()
+    updir=os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+    self.conf.read(updir+'/config.ini')                   
+    self.kdayH5Qfq_dir = self.conf.get('workDir','kdayH5Qfq_dir') 
+    # print(self.kdayH5Qfq_dir)
 
 
   def  GetWriteConnect(self):
@@ -62,7 +59,6 @@ class CALCDATA:
       resList = cur.fetchall()
       self.connect.close()
       return resList  
-
 
   def getMa(self,maDate):    #计算均线 ，参数说明：maDate为均线计算日期，即收盘日期   
       edate=datetime.datetime.strptime(maDate, '%Y-%m-%d')
@@ -126,29 +122,47 @@ class CALCDATA:
       h5.close() 
       
 
-h5 = pd.HDFStore('D:\\h5qfqdata\\kday_SH601388','r')
-df = h5['data']
-df= df.sort_values('trade_date')
-# print(df)
-# df['ma3']=df['close'].rolling(3).mean()    #计算均线
-# df['ma5']=df['close'].rolling(5).mean()
-# df['ma10']=df['close'].rolling(10).mean()
-# df['ma20']=df['close'].rolling(20).mean()
-# df['ma30']=df['close'].rolling(30).mean()
-# df['ma60']=df['close'].rolling(60).mean()
-# df['ma120']=df['close'].rolling(120).mean()
-# df['ma250']=df['close'].rolling(250).mean() 
-# df['high3']=df['high'].rolling(3).max() 
-# df['high5']=df['high'].rolling(5).max()
-# df['high10']=df['high'].rolling(10).max()
-# df['high20']=df['high'].rolling(20).max()
-# df['high30']=df['high'].rolling(30).max()
-# df['high60']=df['high'].rolling(60).max()
-df['high120']=df['high'].rolling(120).max()
-df['low120']=df['low'].rolling(120).min()
-# df['priceMax']=df['high'].max()   
-# df['priceMin']=df['low'].min()
-# df['amountMax']=df['amount'].max()  
-# df['amountMin']=df['amount'].min()  
-print(df[['trade_date','close','high120','low120']])
-h5.close()
+  def calcResult(self):
+    dfResult=[]
+    for h5qfqfile in os.listdir(self.kdayH5Qfq_dir): 
+      print(h5qfqfile)
+      h5 = pd.HDFStore(self.kdayH5Qfq_dir+h5qfqfile,'r')
+      df = h5['data']
+    #   df = df[df['trade_date']>'20180901']
+      h5.close()
+      if df.size>0:
+        dfRes1=df
+        df=df.set_index(['trade_date'])
+        #计算区间股票最高价格、最低价格、最高价格所在日期，最低价格所在日期
+        highest=df['high'].max()
+        highDate=df[df['high']==highest].index.tolist()[0]
+        lowest=df['low'].min()
+        lowestDate=df[df['low']==lowest].index.tolist()[0]  
+        lowestDateRecalc=df[df['low']==lowest].index.tolist()[0]      
+        #计算区间股票最高价到收盘日期的天数
+        highestDate=dt.strptime(highDate, "%Y%m%d")
+        tradeDate=dt.strptime(df.tail(1).index.tolist()[0], "%Y%m%d")
+        highDateDiff=(tradeDate-highestDate).days               
+        #计算区间股票最低价到收盘日期的天数
+        lowestDate=dt.strptime(lowestDate, "%Y%m%d")
+        lowerDateDiff=(tradeDate-lowestDate).days
+        
+        df['highest']=highest
+        df['highestDate']=highDate 
+        df['highDateDiff']=highDateDiff
+        df['lowest']=lowest
+        df['lowestDate']=lowestDate  
+        df['lowerDateDiff']=lowerDateDiff        
+        df=df.tail(1)        
+        dfResult.append(df)
+        # print(dfResult)
+        # print('ok')
+    resultDf=pd.concat(dfResult) 
+    print(resultDf)
+    h5 = pd.HDFStore('testdf0430','w')
+    h5['data'] = resultDf      
+    h5.close()   
+
+if __name__ == '__main__':
+    calcProc=CALCDATA(host="192.168.151.216", user="toshare1", pwd="toshare1", db="kday") 
+    calcProc.calcResult()
